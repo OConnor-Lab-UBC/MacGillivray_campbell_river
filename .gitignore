@@ -48,5 +48,3 @@ po/*~
 # RStudio Connect folder
 rsconnect/
 
-#ignore raw data 
-raw_data/

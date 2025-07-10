@@ -100,9 +100,9 @@ df_plot %>%
   geom_boxplot() +
   facet_wrap(~ site) +
   labs(
-    title = "Extension by Collection Point (T1 & T2), Genotype (g & ng), and Site",
+    title = "Growth by Collection Point (T1 & T2), Genotype (g & ng), and Site",
     x = "Collection Point",
-    y = "Extension") +
+    y = "relative growth per day") +
   theme_minimal()
 
 # Calculate n per group for label positioning
@@ -124,7 +124,7 @@ ggplot(df_plot, aes(x = collection_point, y = rgr_perday, fill = g_ng)) +
   ) +
   facet_wrap(~ site) +
   labs(
-    title = "Extension by Collection Point (T1 & T2), treatment (g & ng), and Site",
+    title = "relative growth per day by Collection Point (T1 & T2), treatment (g & ng), and Site",
     x = "Collection Point",
-    y = "Extension") +
+    y = "growth per day") +
   theme_minimal()

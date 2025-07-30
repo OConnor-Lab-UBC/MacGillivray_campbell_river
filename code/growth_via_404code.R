@@ -11,27 +11,28 @@ library(readr)
 #install.packages("bit64")
 
 #read in data
-growth<- read_csv("raw_data/Tansplant.csv")
+growth<- read_csv("raw_data/Tansplant_data.csv")
 
+growth <- growth %>%
+  filter(!is.na(id))
 
 #peek at the data 
 str(growth)
 head(growth)
 View(growth)
+names(growth)
 
-#calculation, with standardized to extention and sheath, sheath beacause many leaves were cut
+#calculations, note standardization already done in excel standardized to sheath = sum(newleaves)/ sheath, standardized to old = sum new/ sum old
 growth2 <- growth %>%
   mutate(
-    LA = (length_calculated * shoot_width * blade_number_tx),
-    sheath_length = as.numeric(sheath_length)) %>%  
+    sheath_length = as.numeric(gsub("[^0-9.]", "", sheath_length)),
+    standardised_to_sheath = as.numeric(standardized_extension_to_sheath),
+    RGR_old = as.numeric(`standardized_to_old`),
+    LA = length_calculated * shoot_width * blade_number_tx
+  ) %>%
   group_by(site) %>%
   mutate(
-    new_leaves_sum = rowSums(across(b1_new:b10_new), na.rm = TRUE),
-    full_leaves_sum = rowSums(across(b1_full:b10_full), na.rm = TRUE),
-    standardized_leaf_extension = new_leaves_sum / full_leaves_sum,
-    standardized_to_sheath = new_leaves_sum / sheath_length,
-    RGR = standardized_leaf_extension / duration) %>%
-  mutate(rgr_sheath = standardized_to_sheath / duration) %>%
+    RGR = standardised_to_sheath / duration) %>%
   ungroup()
 
 head(growth2) #check to see that the new growth columns have been added
@@ -61,10 +62,10 @@ dev.new()
 filtered<- growth2 %>%
   mutate(collection_point = tolower(trimws(collection_point)),
     treatment = tolower(trimws(treatment))) %>%
-  filter(collection_point %in% c("t1", "t2", "t0"), treatment %in% c("g", "ng", "none"), (!is.na(site)))
+  filter(collection_point %in% c("t1", "t2"), treatment %in% c("g", "ng"), (!is.na(site)))
 
 
-# Boxplot for RGR - remember this is extention and with filtered data 
+# Boxplot for RGR  
 rgr_plot <- filtered %>%
   ggplot(aes(x = collection_point, y = RGR, fill = treatment)) +
   geom_boxplot() +
@@ -82,9 +83,9 @@ rgr_plot <- filtered %>%
   theme_minimal()
 plot(rgr_plot)
 
-# Boxplot for rgr - remember this is standardized to sheath and with filtered data 
-rgr_plot2 <- filtered %>%
-  ggplot(aes(x = collection_point, y = rgr_sheath, fill = treatment)) +
+
+ext_plot <- filtered %>%
+  ggplot(aes(x = collection_point, y = standardised_to_sheath, fill = treatment)) +
   geom_boxplot() +
   geom_jitter(
     aes(color = treatment),
@@ -94,15 +95,55 @@ rgr_plot2 <- filtered %>%
   ) +
   facet_wrap(~ site) +
   labs(
-    title = "Seagrass relative growth rate",
+    title = "Seagrass extension standardized tosheath",
+    x = "Collection Point",
+    y = "standardized extension") +
+  theme_minimal()
+plot(ext_plot)
+
+# Boxplot for rgr - standardized to old leaf
+rgr_plot2 <- filtered %>%
+  ggplot(aes(x = collection_point, y = RGR_old, fill = treatment)) +
+  geom_boxplot() +
+  geom_jitter(
+    aes(color = treatment),
+    position = position_jitterdodge(jitter.width = 0.2, dodge.width = 0.75),
+    size = 1.5,
+    alpha = 0.6
+  ) +
+  facet_wrap(~ site) +
+  labs(
+    title = "Seagrass relative growth rate standardized to old leafs",
     x = "Collection Point",
     y = "RGR") +
   theme_minimal()
 plot(rgr_plot2)
 
+#plant id 333 (row 53) is a large outlier that I dont have confidence in the measurment so I am removing here
+rgr_clean <- filtered[-53, ]
+
+rgr_plot2.2 <- rgr_clean %>%
+  ggplot(aes(x = collection_point, y = RGR_old, fill = treatment)) +
+  geom_boxplot() +
+  geom_jitter(
+    aes(color = treatment),
+    position = position_jitterdodge(jitter.width = 0.2, dodge.width = 0.75),
+    size = 1.5,
+    alpha = 0.6
+  ) +
+  facet_wrap(~ site) +
+  labs(
+    title = "Seagrass relative growth rate standardized to old leafs",
+    x = "Collection Point",
+    y = "RGR") +
+  theme_minimal()
+plot(rgr_plot2.2)
+
+###GOING TO STICK TO STANDARDIZED TO SHEATH BECAUSE IT MAKES MORE SENSE! ##########
+
 #boxplot of rgr only seperated by site and treatment as RGR has duration incorporated already
 rgr_plot3 <- filtered %>%
-  ggplot(aes(x = site, y = rgr_sheath, fill = treatment)) +
+  ggplot(aes(x = site, y = RGR, fill = treatment)) +
   geom_boxplot()+
   geom_jitter(
     aes(color = treatment),
@@ -118,75 +159,9 @@ rgr_plot3 <- filtered %>%
 plot(rgr_plot3)
 
 #the black line indicates the mean RGR value for each group. It appears the two groups do not appear to differ significantly...
-#you see some differences when separated by time point. Thinking of what this means ..
-#Looking at rgr_plot2 growth slowed down at 2 weeks, maybe seeing slight difference in ng/g in t2 high and t1 low
-
-# Boxplot for extension: filtered for current data
-extention_plot <- filtered %>%
-  ggplot(aes(x = collection_point, y = standardized_leaf_extension, fill = treatment)) +
-  geom_boxplot() +
-  geom_jitter(
-    aes(color = treatment),
-    position = position_jitterdodge(jitter.width = 0.2, dodge.width = 0.75),
-    size = 1.5,
-    alpha = 0.6
-  ) +
-  facet_wrap(~ site) +
-  labs(
-    title = "Seagrass standardized leaf extention",
-    x = "Collection Point",
-    y = "Leaf extension") +
-  theme_minimal()
-plot(extention_plot)
-
-extention_plot_sheath <- filtered %>%
-  ggplot(aes(x = collection_point, y = standardized_to_sheath, fill = treatment)) +
-  geom_boxplot() +
-  geom_jitter(
-    aes(color = treatment),
-    position = position_jitterdodge(jitter.width = 0.2, dodge.width = 0.75),
-    size = 1.5,
-    alpha = 0.6
-  ) +
-  facet_wrap(~ site) +
-  labs(
-    title = "Seagrass standardized leaf extention",
-    x = "Collection Point",
-    y = "RGR") +
-  theme_minimal()
-plot(extention_plot_sheath)
-
-#looks like between looking at RGR and extension the plants grew the most in week 1 and slowed growth alot in week 2
-#donor t1 and high t2 may be showing difference in treatment, although ns are very differnt and not much diffence so idk. 
-
-#Index cut is 0= not cut, 1= cut, 2= shoot gont, 
-cut_plot <- ggplot(filtered, aes(x = cut_index, fill = treatment)) +
-  geom_bar(position = "dodge") +
-  facet_wrap(~ site) +
-  labs(
-    title = "Cut Index Counts by Treatment and Site",
-    x = "Cut Index",
-    y = "Count"
-  ) +
-  theme_minimal()
-
-plot(cut_plot)
-
-#condition is 0-5
-condition_plot <- ggplot(filtered, aes(x = condition_index, fill = treatment)) +
-  geom_bar(position = "dodge") +
-  facet_wrap(~ site) +
-  labs(
-    title = "Cut Index Counts by Treatment and Site",
-    x = "condition_index",
-    y = "Count"
-  ) +
-  theme_minimal()
-plot(condition_plot)
 
 # Calculate n per group for label positioning
-rgr_clean <- filtered %>% 
-  filter(collection_point %in% c("t1", "t2"), treatment %in% c("g", "ng"))
+
 #grouped all together
 n_summary_rgr <- rgr_clean %>%
   group_by(site, treatment) %>%
@@ -203,45 +178,10 @@ n_summary_rgr2<- rgr_clean %>%
     y_pos = max(RGR, na.rm = TRUE) +0.03,  # Position label just above the box
     .groups = "drop")
 
-#standardized to sheath
-#grouped all together
-n_summary_rgr3 <- rgr_clean %>%
-  group_by(site, treatment) %>%
-  summarise(
-    n = n(),
-    y_pos = max(rgr_sheath, na.rm = TRUE) + 0.05,  # Position label just above the box
-    .groups = "drop")
-
-#seperatied by collection point
-n_summary_rgr4<- rgr_clean %>%
-  group_by(site, collection_point, treatment) %>%
-  summarise(
-    n = n(),
-    y_pos = max(rgr_sheath, na.rm = TRUE) +0.03,  # Position label just above the box
-    .groups = "drop")
-
-#extension
-ext_clean <- growth2 %>%
-  filter(!is.na(standardized_leaf_extension), !is.na(site), !is.na(collection_point), !is.na(treatment))
-
-n_summary_ext<- ext_clean %>%
-  group_by(site, collection_point, treatment) %>%
-  summarise(
-    n = n(),
-    y_pos = max(standardized_leaf_extension, na.rm = TRUE) +0.03,  # Position label just above the box
-    .groups = "drop")
-#standardized to sheath
-n_summary_ext2<- ext_clean %>%
-  group_by(site, collection_point, treatment) %>%
-  summarise(
-    n = n(),
-    y_pos = max(standardized_to_sheath, na.rm = TRUE) +0.03,  # Position label just above the box
-    .groups = "drop")
-
 # boxplot and n values
 
 # Plots with n's 
-rgr3 <- ggplot(rgr_clean, aes(x = site, y = RGR, fill = treatment)) +
+rgr_plot4 <- ggplot(rgr_clean, aes(x = site, y = RGR, fill = treatment)) +
   geom_boxplot(position = position_dodge(width = 0.75)) +
   geom_jitter(
     aes(color = treatment),
@@ -263,16 +203,17 @@ rgr3 <- ggplot(rgr_clean, aes(x = site, y = RGR, fill = treatment)) +
     y = "RGR"
   ) +
   theme_minimal()
-plot(rgr3)
+plot(rgr_plot4)
 
-rgr3.b <- ggplot(rgr_clean, aes(x = collection_point, y = RGR, fill = treatment)) +
-  geom_boxplot(position = position_dodge(width = 0.75)) +
+
+rgr_plot5 <- rgr_clean %>%
+  ggplot(aes(x = collection_point, y = RGR, fill = treatment)) +
+  geom_boxplot() +
   geom_jitter(
     aes(color = treatment),
     position = position_jitterdodge(jitter.width = 0.2, dodge.width = 0.75),
     size = 1.5,
     alpha = 0.6) +
-  facet_wrap(~site)+
   geom_text(
     data = n_summary_rgr2,
     aes(x = collection_point, y = y_pos, label = paste0("n=", n), group = treatment),
@@ -280,131 +221,80 @@ rgr3.b <- ggplot(rgr_clean, aes(x = collection_point, y = RGR, fill = treatment)
     vjust = 0,
     size = 3,
     inherit.aes = FALSE)+
+  facet_wrap(~ site) +
   labs(
-    title = "RGR",
-    x = "Site",
+    title = "Seagrass relative growth rate",
+    x = "Collection Point",
     y = "RGR") +
   theme_minimal()
-plot(rgr3.b)
+plot(rgr_plot5)
 
-rgr4 <- ggplot(rgr_clean, aes(x = site, y = rgr_sheath, fill = treatment)) +
-  geom_boxplot(position = position_dodge(width = 0.75)) +
-  geom_jitter(
-    aes(color = treatment),
-    position = position_jitterdodge(jitter.width = 0.2, dodge.width = 0.75),
-    size = 1.5,
-    alpha = 0.6
-  ) +
-  geom_text(
-    data = n_summary_rgr3,
-    aes(x = site, y = y_pos, label = paste0("n=", n), group = treatment),
-    position = position_dodge(width = 0.75),
-    vjust = 0,
-    size = 3,
-    inherit.aes = FALSE
-  ) +
+
+
+#Index cut is 0= not cut, 1= cut, 2= shoot gont, 
+cut_plot <- ggplot(rgr_clean, aes(x = cut_index, fill = treatment)) +
+  geom_bar(position = "dodge") +
+  facet_wrap(~ site) +
   labs(
-    title = "rgr standardized to sheath",
-    x = "Site",
-    y = "RGR"
+    title = "Cut Index Counts by Treatment and Site",
+    x = "Cut Index",
+    y = "Count"
   ) +
   theme_minimal()
-plot(rgr4)
 
-rgr4.b <- ggplot(rgr_clean, aes(x = collection_point, y = rgr_sheath, fill = treatment)) +
-  geom_boxplot(position = position_dodge(width = 0.75)) +
-  geom_jitter(
-    aes(color = treatment),
-    position = position_jitterdodge(jitter.width = 0.2, dodge.width = 0.75),
-    size = 1.5,
-    alpha = 0.6) +
-  facet_wrap(~site)+
-  geom_text(
-    data = n_summary_rgr4,
-    aes(x = collection_point, y = y_pos, label = paste0("n=", n), group = treatment),
-    position = position_dodge(width = 0.75),
-    vjust = 0,
-    size = 3,
-    inherit.aes = FALSE)+
-  labs(
-    title = "rgr standardized to sheath",
-    x = "Site",
-    y = "RGR") +
-  theme_minimal()
-plot(rgr4.b)
+plot(cut_plot)
 
-#just extentsion
-ext2 <- ggplot(ext_clean, 
-               aes(x = collection_point, y = standardized_leaf_extension, fill = treatment)) +
-  geom_boxplot(position = position_dodge(width = 0.75)) +
-  geom_jitter(
-    aes(color = treatment),
-    position = position_jitterdodge(jitter.width = 0.2, dodge.width = 0.75),
-    size = 1.5,
-    alpha = 0.6
-  ) +
-  facet_wrap(~site) +
-  geom_text(
-    data = n_summary_ext,
-    aes(x = collection_point, y = y_pos, label = paste0("n=", n), group = treatment),
-    position = position_dodge(width = 0.75),
-    vjust = 0,
-    size = 3,
-    inherit.aes = FALSE
-  ) +
+#condition is 0-5
+condition_plot <- ggplot(rgr_clean, aes(x = condition_index, fill = treatment)) +
+  geom_bar(position = "dodge") +
+  facet_wrap(~ site) +
   labs(
-    title = "standardized_leaf_extension by Site and Collection Point",
-    x = "Collection Point",
-    y = "standardized_leaf_extension"
+    title = "Cut Index Counts by Treatment and Site",
+    x = "condition_index",
+    y = "Count"
   ) +
   theme_minimal()
-plot(ext2)
+plot(condition_plot)
 
-#standardized to sheath
-ext3 <- ggplot(ext_clean, 
-               aes(x = collection_point, y = standardized_to_sheath, fill = treatment)) +
-  geom_boxplot(position = position_dodge(width = 0.75)) +
-  geom_jitter(
-    aes(color = treatment),
-    position = position_jitterdodge(jitter.width = 0.2, dodge.width = 0.75),
-    size = 1.5,
-    alpha = 0.6
-  ) +
-  facet_wrap(~site) +
-  geom_text(
-    data = n_summary_ext2,
-    aes(x = collection_point, y = y_pos, label = paste0("n=", n), group = treatment),
-    position = position_dodge(width = 0.75),
-    vjust = 0,
-    size = 3,
-    inherit.aes = FALSE
-  ) +
+
+#how many RGR of 0 or NA
+rgr_summary <- rgr_clean %>%
+  mutate(RGR_zero_or_na = is.na(RGR) | RGR == 0) %>%
+  group_by(site, treatment) %>%
+  summarise(count = sum(RGR_zero_or_na), .groups = "drop")
+
+ggplot(rgr_summary, aes(x = treatment, y = count, fill = treatment)) +
+  geom_bar(stat = "identity") +
+  facet_wrap(~ site) +
   labs(
-    title = "standardized leaf extension to sheath by Site and Collection Point",
-    x = "Collection Point",
-    y = "standardized_leaf_extension"
+    title = "Count of RGR == 0 or NA per Treatment at Each Site",
+    x = "Treatment",
+    y = "Count of RGR == 0 or NA"
   ) +
   theme_minimal()
-plot(ext3)
 
+# STATS -------------------------------------------------------------
+rgr_clean2 <- filtered %>% 
+  filter(!is.na(standardised_to_sheath)) %>%
+  filter(treatment %in% c("ng", "g"))
 
-# Regressions -------------------------------------------------------------
-ext_clean_anova <- filtered %>% 
-  filter(!is.na(standardized_to_sheath))
-anova_model <- aov(standardized_to_sheath ~ treatment * collection_point * site, data = filtered)
+anova_model <- aov(standardised_to_sheath ~ treatment * collection_point * site, data = rgr_clean)
 summary(anova_model)
 
 par(mfrow = c(2, 2))
 plot(anova_model)  # residual plots
 
+TukeyHSD(anova_model, "treatment")
+TukeyHSD(anova_model, "collection_point")
+TukeyHSD(anova_model, "site")
+
 anova_model2 <- aov(RGR ~ treatment * collection_point * site, data = rgr_clean)
-summary(anova_model)
+summary(anova_model2)
+
+TukeyHSD(anova_model, "collection_point")
+TukeyHSD(anova_model, "site")
 
 par(mfrow = c(2, 2))
 plot(anova_model2)  # residual plots
 
-anova_model3 <- aov(rgr_sheath ~ treatment * collection_point * site, data = rgr_clean)
-summary(anova_model3)
 
-par(mfrow = c(2, 2))
-plot(anova_model3)  # residual plots

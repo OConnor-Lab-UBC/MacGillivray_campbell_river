@@ -9,7 +9,8 @@ library(dplyr)
 #install.packages("readr")
 library(readr)
 #install.packages("bit64")
-
+install.packages("MuMIn")
+library(MuMIn)
 #read in data
 growth<- read_csv("raw_data/Tansplant_data.csv")
 
@@ -27,12 +28,11 @@ growth2 <- growth %>%
   mutate(
     sheath_length = as.numeric(gsub("[^0-9.]", "", sheath_length)),
     standardised_to_sheath = as.numeric(standardized_extension_to_sheath),
-    RGR_old = as.numeric(`standardized_to_old`),
-    LA = length_calculated * shoot_width * blade_number_tx
-  ) %>%
+    standardised_to_old = as.numeric(`standardized_to_old`),
+    LA = length_calculated * shoot_width * blade_number_tx) %>%
   group_by(site) %>%
-  mutate(
-    RGR = standardised_to_sheath / duration) %>%
+  mutate(RGR = standardised_to_sheath / duration) %>%
+  mutate(RGR_old = standardised_to_old / duration)%>%
   ungroup()
 
 head(growth2) #check to see that the new growth columns have been added
@@ -225,10 +225,9 @@ rgr_plot5 <- rgr_clean %>%
   labs(
     title = "Seagrass relative growth rate",
     x = "Collection Point",
-    y = "RGR") +
+    y = "Relative Growth Rate (Extension standardized to sheath/ duration (days)") +
   theme_minimal()
 plot(rgr_plot5)
-
 
 
 #Index cut is 0= not cut, 1= cut, 2= shoot gont, 
@@ -274,27 +273,52 @@ ggplot(rgr_summary, aes(x = treatment, y = count, fill = treatment)) +
   theme_minimal()
 
 # STATS -------------------------------------------------------------
+#just time point 2
 rgr_clean2 <- filtered %>% 
   filter(!is.na(standardised_to_sheath)) %>%
-  filter(treatment %in% c("ng", "g"))
+  filter(treatment %in% c("ng", "g")) %>%
+  filter(collection_point == "t2")
 
-anova_model <- aov(standardised_to_sheath ~ treatment * collection_point * site, data = rgr_clean)
-summary(anova_model)
+mod1 <- lm(standardised_to_sheath ~ treatment* site, data = rgr_clean2)
+summary(mod1)
 
-par(mfrow = c(2, 2))
-plot(anova_model)  # residual plots
+mod2 <- lm(standardised_to_sheath ~ site, data = rgr_clean2)
+summary(mod2)
 
-TukeyHSD(anova_model, "treatment")
-TukeyHSD(anova_model, "collection_point")
-TukeyHSD(anova_model, "site")
+mod0 <- lm(standardised_to_sheath ~ 1, data = rgr_clean2)
+summary(mod0)
 
-anova_model2 <- aov(RGR ~ treatment * collection_point * site, data = rgr_clean)
-summary(anova_model2)
+mod3 <- lm(standardised_to_sheath ~ treatment + site, data = rgr_clean2)
 
-TukeyHSD(anova_model, "collection_point")
-TukeyHSD(anova_model, "site")
+model.sel(mod1, mod2, mod0, mod3)
 
-par(mfrow = c(2, 2))
-plot(anova_model2)  # residual plots
+
+rgr_clean3 <- filtered %>% 
+  filter(!is.na(standardised_to_sheath)) %>%
+  filter(treatment %in% c("ng", "g")) %>%
+  filter(collection_point %in% c("t1", "t2"))
+
+mod1 <- lm(standardised_to_sheath ~ treatment* site + collection_point, data = rgr_clean3)
+summary(mod1)
+
+mod2 <- lm(standardised_to_sheath ~ site+ collection_point, data = rgr_clean3)
+summary(mod2)
+
+mod2.5 <- lm(standardised_to_sheath ~ treatment + collection_point, data = rgr_clean3)
+summary(mod2.5)
+
+mod4 <- lm(standardised_to_sheath ~ collection_point, data = rgr_clean3)
+summary(mod2.5)
+
+mod0 <- lm(standardised_to_sheath ~ 1, data = rgr_clean3)
+summary(mod0)
+
+mod3 <- lm(standardised_to_sheath ~ treatment + site, data = rgr_clean3)
+
+mod3.2 <- lm(standardised_to_sheath ~ treatment * collection_point, data = rgr_clean3)
+
+model.sel(mod1, mod2, mod2.5, mod4, mod0, mod3, mod3.2)
+
+
 
 

@@ -1,4 +1,4 @@
-# campbell_river
+# MacGillivray_campbell_river
 
 code and raw data from Mill Pond Campbell River estuary project with Greenways land trust
 Miranda MacGillivray MSc project 2024-2026 at UBC

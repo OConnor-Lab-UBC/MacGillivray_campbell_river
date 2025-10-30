@@ -21,8 +21,9 @@ data %>%
     !is.na(date_collected),           # Must have been collected
     tolower(collection_point) == "t0", # At T0 time point
     tolower(site) == "natural") %>%         # Natural site
-  nrow()
+  view()
 
+#12 plants were collected for baseline measurements at T0 at donor meadow (natural plants) 
 
 # See all combinations of site and collection_point with counts
 site_time_summary <- data %>%
@@ -36,7 +37,6 @@ full_summary <- data %>%
   filter(!is.na(date_collected)) %>%
   count(site, collection_point, g_ng) %>%
   arrange(site, collection_point, g_ng)
-
 print(full_summary)
 
 # Alternative view: wider format for easier reading
@@ -46,8 +46,7 @@ full_summary_wide <- data %>%
   pivot_wider(
     names_from = g_ng,
     values_from = n,
-    values_fill = 0
-  ) %>%
+    values_fill = 0) %>%
   arrange(site, collection_point)
 
 print(full_summary_wide)
@@ -379,3 +378,78 @@ ggplot(missed_collection, aes(x = site, y = percent_missed, fill = g_ng)) +
     legend.title = element_text(size = 11, face = "bold"),
     legend.text = element_text(size = 10),
     panel.grid.minor = element_blank())
+
+
+
+#--------------#with NIDs--------------------------------
+# Now recalculate your proportion summary with nid data
+proportion_by_time<- data %>%
+  filter(!is.na(date_collected), 
+         site %in% c("high", "low", "donor"),
+         collection_point %in% c("t1", "t2", "t3")) %>%
+  count(site, collection_point, g_ng) %>%
+  mutate(
+    planted = 60,
+    proportion_collected = n / planted,
+    percent_collected = (n / planted) * 100) %>%
+  arrange(site, collection_point, g_ng)
+print(proportion_by_time)
+
+# Total by site (all time points combined)
+total_by_site_wnid <- data %>%
+  filter(!is.na(date_collected), 
+         site %in% c("high", "low", "donor"),
+         collection_point %in% c("t1", "t2", "t3")) %>%
+  count(site, g_ng) %>%
+  mutate(
+    planted = 60,
+    total_collected = n,
+    proportion = n / planted,
+    percent = (n / planted) * 100)
+print(total_by_site_wnid)
+
+
+# Create a plot to visualize this
+# Filter out NA treatments and aggregate by site
+proportion_plot_data_nid <- proportion_by_time %>%
+  filter(!is.na(g_ng), g_ng != "NA") %>%
+  group_by(site, g_ng) %>%
+  summarise(
+    n = sum(n),
+    planted = 60,
+    percent_collected = (n / planted) * 100,
+    .groups = 'drop')
+
+ggplot(proportion_plot_data_nid, aes(x = site, y = percent_collected, fill = g_ng)) +
+  geom_bar(stat = "identity", position = position_dodge(width = 0.9), width = 0.8) +
+  geom_text(aes(label = paste0(n, "/60")), 
+            position = position_dodge(width = 0.9), 
+            vjust = 1.5, 
+            size = 3.5,
+            color = "white",
+            fontface = "bold") +
+  geom_text(aes(label = paste0("(", round(percent_collected, 1), "%)")), 
+            position = position_dodge(width = 0.9), 
+            vjust = -0.5, 
+            size = 3) +
+  scale_fill_manual(values = c("g" = "#ef4444", "ng" = "#3b82f6"),
+                    labels = c("g" = "Galvanized", "ng" = "Non-Galvanized"),
+                    name = "Treatment") +
+  labs(title = "Plant Collection Success by Site and Treatment",
+       subtitle = "Proportion of plants collected across three time points (n=60 planted per treatment per site)",
+       x = "Site",
+       y = "Percent Collected (%)") +
+  scale_y_continuous(limits = c(0, 110), breaks = seq(0, 100, 20)) +
+  scale_x_discrete(labels = c("donor" = "Donor", "high" = "High", "low" = "Low")) +
+  theme_minimal() +
+  theme(
+    plot.title = element_text(size = 16, face = "bold", hjust = 0.5),
+    plot.subtitle = element_text(size = 11, hjust = 0.5, color = "gray40"),
+    axis.title = element_text(size = 12, face = "bold"),
+    axis.text = element_text(size = 11),
+    legend.position = "top",
+    legend.title = element_text(size = 11, face = "bold"),
+    legend.text = element_text(size = 10),
+    panel.grid.minor = element_blank())
+
+

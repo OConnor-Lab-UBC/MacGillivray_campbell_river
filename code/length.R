@@ -1,6 +1,6 @@
 # Analysis of collected plants with measurements
 # Load libraries
-library(dplyr)
+library(tidyverse)
 library(ggplot2)
 
 data<- read_csv("raw_data/plant_data.csv")
@@ -14,7 +14,7 @@ collected_with_measurements <- data_id_only %>%
   filter(!is.na(date_collected)) %>%
   # Check which measurement columns have data
   mutate(
-    has_length = !is.na(length_measured >0) | !is.na(length_calculated >0),
+    has_length = !is.na(length_measured) | !is.na(length_calculated >0),
     has_weight = !is.na(shoot_weight >0) | !is.na(rhizome_weight >0),
     has_blade_measurements = !is.na(b1_full),
     has_epiphytes = !is.na(epi_weight) & epi_weight > 0)
@@ -28,7 +28,6 @@ measurement_summary <- collected_with_measurements %>%
     has_blade_measurements = sum(has_blade_measurements, na.rm = TRUE),
     has_epiphytes = sum(has_epiphytes, na.rm = TRUE))
 
-print("Summary of collected plants with measurements:")
 print(measurement_summary)
 
 # Look at key measurement variables
@@ -39,21 +38,7 @@ key_measurements <- collected_with_measurements %>%
          blade_number_tx, epi_weight,
          b1_full, b2_full, b3_full, b4_full)
 
-print("First few rows with key measurements:")
 print(head(key_measurements, 20))
-
-# Check for missing values in key measurements
-missing_summary <- collected_with_measurements %>%
-  summarise(
-    n = n(),
-    missing_length_measured = sum(is.na(length_measured)),
-    missing_shoot_weight = sum(is.na(shoot_weight)),
-    missing_rhizome_weight = sum(is.na(rhizome_weight)),
-    missing_blade_number = sum(is.na(blade_number_tx)),
-    missing_epi_weight = sum(is.na(epi_weight)))
-
-print("Missing values in key measurements:")
-print(missing_summary)
 
 # Analyze length of collected plants per site
 
@@ -66,8 +51,13 @@ length_data <- collected_with_measurements %>%
   filter(!is.na(total_length))
 
 print(paste("Plants with length measurements:", nrow(length_data)))
+head(length_data)
 
-# Summary statistics by site
+# First, convert total_length to numeric (this will coerce any non-numeric values to NA)
+length_data <- length_data %>%
+  mutate(total_length = as.numeric(total_length))
+
+# Then run your summary
 length_summary_site <- length_data %>%
   group_by(site) %>%
   summarise(
@@ -77,8 +67,6 @@ length_summary_site <- length_data %>%
     median_length = median(total_length, na.rm = TRUE),
     min_length = min(total_length, na.rm = TRUE),
     max_length = max(total_length, na.rm = TRUE))
-
-print("Length summary by site:")
 print(length_summary_site)
 
 # Summary by site and treatment
@@ -92,7 +80,6 @@ length_summary_site_treatment <- length_data %>%
     median_length = median(total_length, na.rm = TRUE),
     .groups = 'drop')
 
-print("Length summary by site and treatment:")
 print(length_summary_site_treatment)
 
 # Boxplot of length by site
@@ -129,6 +116,45 @@ ggplot(length_data_treatment, aes(x = site, y = total_length, fill = g_ng)) +
     axis.title = element_text(size = 12, face = "bold"),
     axis.text = element_text(size = 11),
     legend.position = "top")
+
+# Calculate sample sizes and max values for positioning
+n_labels <- length_data_treatment %>%
+  group_by(site, g_ng, collection_point) %>%
+  summarise(
+    n = sum(!is.na(total_length)),
+    max_val = max(total_length, na.rm = TRUE),
+    .groups = "drop")
+
+# Create the plot with points and n values above
+ggplot(length_data_treatment, aes(x = site, y = total_length, fill = g_ng)) +
+  geom_boxplot(alpha = 0.5, outlier.shape = NA) +
+  geom_point(aes(color = g_ng), 
+             position = position_jitterdodge(jitter.width = 0.2, dodge.width = 0.75),
+             alpha = 0.6, size = 2) +
+  geom_text(data = n_labels, 
+            aes(x = site, y = max_val, label = paste0("n=", n)),
+            position = position_dodge(width = 0.75),
+            vjust = -0.5,
+            size = 3) +
+  facet_wrap(~collection_point, nrow = 1) +
+  scale_fill_manual(values = c("g" = "#ef4444", "ng" = "#3b82f6"),
+                    labels = c("g" = "Galvanized", "ng" = "Non-Galvanized"),
+                    name = "Treatment") +
+  scale_color_manual(values = c("g" = "#dc2626", "ng" = "#2563eb"),
+                     labels = c("g" = "Galvanized", "ng" = "Non-Galvanized"),
+                     name = "Treatment") +
+  labs(title = "Plant Length Distribution by Site, Treatment, and Timepoint",
+       x = "Site",
+       y = "Total Length (cm)") +
+  scale_x_discrete(labels = c("donor" = "Donor", "high" = "High", "low" = "Low")) +
+  theme_minimal() +
+  theme(
+    plot.title = element_text(size = 16, face = "bold", hjust = 0.5),
+    axis.title = element_text(size = 12, face = "bold"),
+    axis.text = element_text(size = 11),
+    legend.position = "top",
+    strip.text = element_text(size = 12, face = "bold"))
+
 
 # Calculate length/sheath ratio and leaf area (LA)
 

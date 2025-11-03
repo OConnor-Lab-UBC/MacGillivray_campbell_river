@@ -14,16 +14,16 @@ library(MuMIn)
 #read in data
 growth<- read_csv("raw_data/plant_data.csv")
 
-growth <- growth %>%
-  filter(!is.na(id))
-
 #peek at the data 
 str(growth)
 head(growth)
 View(growth)
 names(growth)
 
-growth2 <- growth %>%
+growthid <- growth %>%
+  filter(!is.na(id))
+
+growth2 <- growthid %>%
   mutate(
     sheath_length = as.numeric(gsub("[^0-9.]", "", sheath_length)),
     duration = as.numeric(duration_days),  # Also need to convert duration

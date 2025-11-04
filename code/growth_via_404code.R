@@ -20,10 +20,10 @@ head(growth)
 View(growth)
 names(growth)
 
-growthid <- growth %>%
-  filter(!is.na(id))
+#growthid <- growth %>%
+ # filter(!is.na(id))
 
-growth2 <- growthid %>%
+growth2 <- growth %>%
   mutate(
     sheath_length = as.numeric(gsub("[^0-9.]", "", sheath_length)),
     duration = as.numeric(duration_days),  # Also need to convert duration

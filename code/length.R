@@ -67,11 +67,11 @@ length_data_all <- collected_with_measurements %>%
   filter(!is.na(total_length))
 
 # First, convert total_length to numeric (this will coerce any non-numeric values to NA)
-length_data <- length_data %>%
+length_data <- length_data_all %>%
   mutate(total_length = as.numeric(total_length))
 
 # Then run your summary
-length_summary_site <- length_data %>%
+length_summary_site <- length_data_all %>%
   group_by(site) %>%
   summarise(
     n = n(),
@@ -178,9 +178,7 @@ length_data_with_reference <- length_data_all %>%
       g_ng == "g" ~ "Galvanized",
       g_ng == "ng" ~ "Non-Galvanized",
       g_ng == "natural" | site == "natural" ~ "Reference (Natural)",
-      TRUE ~ "Other"
-    )
-  ) %>%
+      TRUE ~ "Other")) %>%
   filter(treatment_group != "Other") %>%
   # Remove treatment groups from t0 (keep only natural)
   filter(!(collection_point == "t0" & site != "natural")) %>%
@@ -193,8 +191,7 @@ n_labels <- length_data_with_reference %>%
   summarise(
     n = sum(!is.na(total_length)),
     max_val = max(total_length, na.rm = TRUE),
-    .groups = "drop"
-  )
+    .groups = "drop")
 
 # Create the plot
 # Create the plot with fixed width boxplots
@@ -233,3 +230,5 @@ ggplot(length_data_with_reference, aes(x = site, y = total_length, fill = treatm
     axis.text = element_text(size = 11),
     legend.position = "top",
     strip.text = element_text(size = 12, face = "bold"))
+
+head(length_data_with_reference)

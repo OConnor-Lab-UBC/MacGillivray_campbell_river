@@ -36,20 +36,12 @@ site_time_summary
 full_summary <- data %>%
   filter(!is.na(date_collected)) %>%
   count(site, collection_point, g_ng) %>%
-  arrange(site, collection_point, g_ng)
-print(full_summary)
-
-# Alternative view: wider format for easier reading
-full_summary_wide <- data %>%
-  filter(!is.na(date_collected)) %>%
-  count(site, collection_point, g_ng) %>%
   pivot_wider(
     names_from = g_ng,
     values_from = n,
     values_fill = 0) %>%
   arrange(site, collection_point)
-
-print(full_summary_wide)
+print(full_summary)
 
 # Calculate proportions collected at each site
 # 60 galvinized (g) and 60 not galvanized (ng) planted at each experimental site
@@ -63,13 +55,12 @@ proportion_summary <- data %>%
     planted = 60,
     proportion_collected = n / planted,
     percent_collected = (n / planted) * 100)
-
 print(proportion_summary)
 
 # By site and time point
 proportion_by_time <- data %>%
   filter(!is.na(date_collected), 
-         site %in% c("high", "low"),
+         site %in% c("high", "low", "donor"),
          collection_point %in% c("t1", "t2", "t3")) %>%
   count(site, collection_point, g_ng) %>%
   mutate(
@@ -77,52 +68,11 @@ proportion_by_time <- data %>%
     proportion_collected = n / planted,
     percent_collected = (n / planted) * 100) %>%
   arrange(site, collection_point, g_ng)
-
 print(proportion_by_time)
 
 # Total by site (all time points combined)
 total_by_site <- data %>%
   filter(!is.na(date_collected), 
-         site %in% c("high", "low"),
-         collection_point %in% c("t1", "t2", "t3")) %>%
-  count(site, g_ng) %>%
-  mutate(
-    planted = 60,
-    total_collected = n,
-    proportion = n / planted,
-    percent = (n / planted) * 100)
-print(total_by_site)
-
-# Remove non-numeric IDs, keep only numeric plant IDs (this is plants that keptt origonial tag)
-data_numeric_only <- data %>%
-  filter(!is.na(id), id != "", !grepl("[^0-9]", id))
-
-# Check how many rows were removed
-print(paste("Original rows:", nrow(data)))
-print(paste("Rows with numeric IDs:", nrow(data_numeric_only)))
-print(paste("Rows removed:", nrow(data) - nrow(data_numeric_only)))
-
-# Verify the IDs are now all numeric
-print("Sample of remaining IDs:")
-print(head(data_numeric_only$id, 20))
-
-# Now recalculate your proportion summary with cleaned data
-proportion_by_time_clean <- data_numeric_only %>%
-  filter(!is.na(date_collected), 
-         site %in% c("high", "low", "donor"),
-         collection_point %in% c("t1", "t2", "t3")) %>%
-  count(site, collection_point, g_ng) %>%
-  mutate(
-    planted = 60,
-    proportion_collected = n / planted,
-    percent_collected = (n / planted) * 100) %>%
-  arrange(site, collection_point, g_ng)
-
-print(proportion_by_time_clean)
-
-# Total by site (all time points combined)
-total_by_site <- data_numeric_only %>%
-  filter(!is.na(date_collected), 
          site %in% c("high", "low", "donor"),
          collection_point %in% c("t1", "t2", "t3")) %>%
   count(site, g_ng) %>%
@@ -133,10 +83,14 @@ total_by_site <- data_numeric_only %>%
     percent = (n / planted) * 100)
 print(total_by_site)
 
+# Remove non-numeric IDs, keep only numeric plant IDs (this is plants that kept original tag)
+#data_numeric_only <- data %>%
+ # filter(!is.na(id), id != "", !grepl("[^0-9]", id))
 
-# Create a plot to visualize this
+
+# Create a plot to visualize porportion collected
 # Filter out NA treatments and aggregate by site
-proportion_plot_data <- proportion_by_time_clean %>%
+proportion_plot_data <- proportion_by_time %>%
   filter(!is.na(g_ng), g_ng != "NA") %>%
   group_by(site, g_ng) %>%
   summarise(
@@ -147,6 +101,7 @@ proportion_plot_data <- proportion_by_time_clean %>%
 
 ggplot(proportion_plot_data, aes(x = site, y = percent_collected, fill = g_ng)) +
   geom_bar(stat = "identity", position = position_dodge(width = 0.9), width = 0.8) +
+  geom_hline(yintercept = 60, linetype = "dotted", color = "gray20", linewidth = 1) +
   geom_text(aes(label = paste0(n, "/60")), 
             position = position_dodge(width = 0.9), 
             vjust = 1.5, 
@@ -157,7 +112,7 @@ ggplot(proportion_plot_data, aes(x = site, y = percent_collected, fill = g_ng)) 
             position = position_dodge(width = 0.9), 
             vjust = -0.5, 
             size = 3) +
-  scale_fill_manual(values = c("g" = "#ef4444", "ng" = "#3b82f6"),
+  scale_fill_manual(values = c("g" = "#ef4440", "ng" = "#3b82f6"),
                     labels = c("g" = "Galvanized", "ng" = "Non-Galvanized"),
                     name = "Treatment") +
   labs(title = "Plant Collection Success by Site and Treatment",
@@ -186,6 +141,7 @@ time_point_data <- proportion_by_time_clean %>%
 # Plot collection over time points
 ggplot(time_point_data, aes(x = collection_point, y = percent_collected, fill = g_ng)) +
   geom_bar(stat = "identity", position = position_dodge(width = 0.9), width = 0.8) +
+  geom_hline(yintercept = 20, linetype = "dotted", color = "gray20", linewidth = 1) +
   geom_text(aes(label = paste0(n, "/60")), 
             position = position_dodge(width = 0.9), 
             vjust = 1.5, 
@@ -226,78 +182,64 @@ ggplot(time_point_data, aes(x = collection_point, y = percent_collected, fill = 
 # At T2: collect from what remains (60 - T1 collected)
 # At T3: collect from what remains (60 - T1 - T2 collected)
 
-# Calculate cumulative collection properly
-cumulative_collection <- proportion_by_time_clean %>%
+# Calculate cumulative for Low and High, we will ignore Donor now
+cumulative_collection <- proportion_by_time %>%
   filter(!is.na(g_ng), g_ng != "NA", 
-         site %in% c("donor", "high", "low"),
+         site %in% c("high", "low"),
          collection_point %in% c("t1", "t2", "t3")) %>%
   arrange(site, g_ng, collection_point) %>%
   group_by(site, g_ng) %>%
   mutate(
     remaining = 60 - cumsum(lag(n, default = 0)),
-    percent_of_remaining = (n / remaining) * 100
-  ) %>%
+    percent_of_remaining = (n / remaining) * 100) %>%
   ungroup()
 
 # Create a combined variable for time point and treatment for different colors
 cumulative_collection <- cumulative_collection %>%
   mutate(
-    time_treatment = paste0(collection_point, "_", g_ng)
-  )
+    time_treatment = paste0(collection_point, "_", g_ng))
 
 # Plot with different shades for each time point
-ggplot(cumulative_collection, aes(x = collection_point, y = percent_of_remaining, fill = time_treatment)) +
-  geom_bar(stat = "identity", position = position_dodge(width = 0.9), width = 0.8) +
+ggplot(cumulative_collection, aes(x = g_ng, y = percent_of_remaining, fill = g_ng)) +
+  geom_hline(yintercept = 20, linetype = "dotted", color = "gray20", linewidth = 1) +
+  geom_bar(stat = "identity", width = 0.7) +
   geom_text(aes(label = paste0(n, "/", remaining)), 
-            position = position_dodge(width = 0.9), 
             vjust = 1.5, 
             size = 3,
             color = "white",
             fontface = "bold") +
   geom_text(aes(label = paste0("(", round(percent_of_remaining, 1), "%)")), 
-            position = position_dodge(width = 0.9), 
             vjust = -0.5, 
             size = 2.5) +
-  facet_wrap(~ site, labeller = labeller(site = c("donor" = "Donor", 
-                                                  "high" = "High", 
-                                                  "low" = "Low"))) +
+  facet_grid(site ~ collection_point, 
+             labeller = labeller(site = c("high" = "High", "low" = "Low"),
+                                 collection_point = c("t1" = "T1", "t2" = "T2", "t3" = "T3"))) +
   scale_fill_manual(
-    values = c(
-      "t1_g" = "#fca5a5",    # Dark red for T1 galvanized
-      "t1_ng" = "#93c5fd",   # Dark blue for T1 non-galvanized
-      "t2_g" = "#f87171",    # Medium red for T2 galvanized
-      "t2_ng" = "#60a5fa",   # Medium blue for T2 non-galvanized
-      "t3_g" = "#dc2626",    # Light red for T3 galvanized
-      "t3_ng" = "#2563eb"    # Light blue for T3 non-galvanized
-    ),
-    labels = c(
-      "t1_g" = "T1 - Galvanized",
-      "t1_ng" = "T1 - Non-Galvanized",
-      "t2_g" = "T2 - Galvanized",
-      "t2_ng" = "T2 - Non-Galvanized",
-      "t3_g" = "T3 - Galvanized",
-      "t3_ng" = "T3 - Non-Galvanized"),
-    name = "Time Point & Treatment") +
+    values = c("g" = "#ef4444", "ng" = "#3b82f6"),
+    labels = c("g" = "Galvanized", "ng" = "Non-Galvanized"),
+    name = "Treatment"
+  ) +
   labs(title = "Plant Collection Success Over Time by Site",
        subtitle = "Percentage of remaining plants collected at each time point (started with n=60 per treatment per site)",
-       x = "Collection Time Point",
+       x = "Treatment",
        y = "Percent of Remaining Plants Collected (%)") +
   scale_y_continuous(limits = c(0, 110), breaks = seq(0, 100, 20)) +
-  scale_x_discrete(labels = c("t1" = "T1", "t2" = "T2", "t3" = "T3")) +
+  scale_x_discrete(labels = c("g" = "G", "ng" = "NG")) +
   theme_minimal() +
   theme(
     plot.title = element_text(size = 16, face = "bold", hjust = 0.5),
     plot.subtitle = element_text(size = 11, hjust = 0.5, color = "gray40"),
     axis.title = element_text(size = 12, face = "bold"),
     axis.text = element_text(size = 10),
-    legend.position = "none",
+    legend.position = "top",
     legend.title = element_text(size = 11, face = "bold"),
     legend.text = element_text(size = 9),
-    strip.text = element_text(size = 12, face = "bold"),
-    panel.grid.minor = element_blank())
+    strip.text = element_text(size = 11, face = "bold"),
+    panel.grid.minor = element_blank(),
+    panel.spacing = unit(1, "lines"))
 
 # Calculate what was missed (not collected)
-missed_collection <- proportion_by_time_clean %>%
+missed_collection <- proportion_by_time %>%
   filter(!is.na(g_ng), g_ng != "NA", 
          site %in% c("donor", "high", "low"),
          collection_point %in% c("t1", "t2", "t3")) %>%
@@ -343,113 +285,6 @@ ggplot(missed_collection, aes(x = site, y = percent_missed, fill = g_ng)) +
     panel.grid.minor = element_blank())
 
 # Summary table of what was missed
-print("Summary of Missed Collections:")
 print(missed_collection)
-
-# Plot what was missed
-ggplot(missed_collection, aes(x = site, y = percent_missed, fill = g_ng)) +
-  geom_bar(stat = "identity", position = position_dodge(width = 0.9), width = 0.8) +
-  geom_text(aes(label = paste0(total_missed, "/60")), 
-            position = position_dodge(width = 0.9), 
-            vjust = 1.5, 
-            size = 3.5,
-            color = "white",
-            fontface = "bold") +
-  geom_text(aes(label = paste0("(", round(percent_missed, 1), "%)")), 
-            position = position_dodge(width = 0.9), 
-            vjust = -0.5, 
-            size = 3) +
-  scale_fill_manual(values = c("g" = "#dc2626", "ng" = "#2563eb"),
-                    labels = c("g" = "Galvanized", "ng" = "Non-Galvanized"),
-                    name = "Treatment") +
-  labs(title = "Plants Not Collected (Missed) by Site and Treatment",
-       subtitle = "Total plants not collected across all three time points (n=60 planted per treatment per site)",
-       x = "Site",
-       y = "Percent Not Collected (%)") +
-  scale_y_continuous(limits = c(0, 80), breaks = seq(0, 80, 20)) +
-  scale_x_discrete(labels = c("donor" = "Donor", "high" = "High", "low" = "Low")) +
-  theme_minimal() +
-  theme(
-    plot.title = element_text(size = 16, face = "bold", hjust = 0.5),
-    plot.subtitle = element_text(size = 11, hjust = 0.5, color = "gray40"),
-    axis.title = element_text(size = 12, face = "bold"),
-    axis.text = element_text(size = 11),
-    legend.position = "top",
-    legend.title = element_text(size = 11, face = "bold"),
-    legend.text = element_text(size = 10),
-    panel.grid.minor = element_blank())
-
-
-
-#--------------#with NIDs--------------------------------
-# Now recalculate your proportion summary with nid data
-proportion_by_time<- data %>%
-  filter(!is.na(date_collected), 
-         site %in% c("high", "low", "donor"),
-         collection_point %in% c("t1", "t2", "t3")) %>%
-  count(site, collection_point, g_ng) %>%
-  mutate(
-    planted = 60,
-    proportion_collected = n / planted,
-    percent_collected = (n / planted) * 100) %>%
-  arrange(site, collection_point, g_ng)
-print(proportion_by_time)
-
-# Total by site (all time points combined)
-total_by_site_wnid <- data %>%
-  filter(!is.na(date_collected), 
-         site %in% c("high", "low", "donor"),
-         collection_point %in% c("t1", "t2", "t3")) %>%
-  count(site, g_ng) %>%
-  mutate(
-    planted = 60,
-    total_collected = n,
-    proportion = n / planted,
-    percent = (n / planted) * 100)
-print(total_by_site_wnid)
-
-
-# Create a plot to visualize this
-# Filter out NA treatments and aggregate by site
-proportion_plot_data_nid <- proportion_by_time %>%
-  filter(!is.na(g_ng), g_ng != "NA") %>%
-  group_by(site, g_ng) %>%
-  summarise(
-    n = sum(n),
-    planted = 60,
-    percent_collected = (n / planted) * 100,
-    .groups = 'drop')
-
-ggplot(proportion_plot_data_nid, aes(x = site, y = percent_collected, fill = g_ng)) +
-  geom_bar(stat = "identity", position = position_dodge(width = 0.9), width = 0.8) +
-  geom_text(aes(label = paste0(n, "/60")), 
-            position = position_dodge(width = 0.9), 
-            vjust = 1.5, 
-            size = 3.5,
-            color = "white",
-            fontface = "bold") +
-  geom_text(aes(label = paste0("(", round(percent_collected, 1), "%)")), 
-            position = position_dodge(width = 0.9), 
-            vjust = -0.5, 
-            size = 3) +
-  scale_fill_manual(values = c("g" = "#ef4444", "ng" = "#3b82f6"),
-                    labels = c("g" = "Galvanized", "ng" = "Non-Galvanized"),
-                    name = "Treatment") +
-  labs(title = "Plant Collection Success by Site and Treatment",
-       subtitle = "Proportion of plants collected across three time points (n=60 planted per treatment per site)",
-       x = "Site",
-       y = "Percent Collected (%)") +
-  scale_y_continuous(limits = c(0, 110), breaks = seq(0, 100, 20)) +
-  scale_x_discrete(labels = c("donor" = "Donor", "high" = "High", "low" = "Low")) +
-  theme_minimal() +
-  theme(
-    plot.title = element_text(size = 16, face = "bold", hjust = 0.5),
-    plot.subtitle = element_text(size = 11, hjust = 0.5, color = "gray40"),
-    axis.title = element_text(size = 12, face = "bold"),
-    axis.text = element_text(size = 11),
-    legend.position = "top",
-    legend.title = element_text(size = 11, face = "bold"),
-    legend.text = element_text(size = 10),
-    panel.grid.minor = element_blank())
 
 

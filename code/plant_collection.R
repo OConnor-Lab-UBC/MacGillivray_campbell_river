@@ -47,7 +47,7 @@ print(full_summary)
 # 60 galvinized (g) and 60 not galvanized (ng) planted at each experimental site
 
 proportion_summary <- data %>%
-  filter(!is.na(collection_point), 
+  filter(!is.na(collection_point), !is.na(g_ng),
          site %in% c("high", "low", "donor"),  # Only experimental sites
          collection_point %in% c("t1", "t2", "t3")) %>%
   count(site, g_ng) %>%
@@ -59,7 +59,7 @@ print(proportion_summary)
 
 # By site and time point
 proportion_by_time <- data %>%
-  filter(!is.na(date_collected), 
+  filter(!is.na(date_collected), !is.na(g_ng),
          site %in% c("high", "low", "donor"),
          collection_point %in% c("t1", "t2", "t3")) %>%
   count(site, collection_point, g_ng) %>%
@@ -72,7 +72,7 @@ print(proportion_by_time)
 
 # Total by site (all time points combined)
 total_by_site <- data %>%
-  filter(!is.na(date_collected), 
+  filter(!is.na(date_collected), !is.na(g_ng),
          site %in% c("high", "low", "donor"),
          collection_point %in% c("t1", "t2", "t3")) %>%
   count(site, g_ng) %>%
@@ -112,10 +112,10 @@ ggplot(proportion_plot_data, aes(x = site, y = percent_collected, fill = g_ng)) 
             position = position_dodge(width = 0.9), 
             vjust = -0.5, 
             size = 3) +
-  scale_fill_manual(values = c("g" = "#ef4440", "ng" = "#3b82f6"),
+  scale_fill_manual(values = c("g" = "#F8766D", "ng" = "#00BFC4"),
                     labels = c("g" = "Galvanized", "ng" = "Non-Galvanized"),
                     name = "Treatment") +
-  labs(title = "Plant Collection Success by Site and Treatment",
+  labs(title = "Sample Collection Success by Site and Treatment",
        subtitle = "Proportion of plants collected across three time points (n=60 planted per treatment per site)",
        x = "Site",
        y = "Percent Collected (%)") +
@@ -131,6 +131,9 @@ ggplot(proportion_plot_data, aes(x = site, y = percent_collected, fill = g_ng)) 
     legend.title = element_text(size = 11, face = "bold"),
     legend.text = element_text(size = 10),
     panel.grid.minor = element_blank())
+
+###---STATS---
+###----------
 
 # Prepare data for time point visualization
 time_point_data <- proportion_by_time_clean %>%
@@ -155,7 +158,7 @@ ggplot(time_point_data, aes(x = collection_point, y = percent_collected, fill = 
   facet_wrap(~ site, labeller = labeller(site = c("donor" = "Donor", 
                                                   "high" = "High", 
                                                   "low" = "Low"))) +
-  scale_fill_manual(values = c("g" = "#ef4444", "ng" = "#3b82f6"),
+  scale_fill_manual(values = c("g" = "#F8766D", "ng" = "#00BFC4"),
                     labels = c("g" = "Galvanized", "ng" = "Non-Galvanized"),
                     name = "Treatment") +
   labs(title = "Plant Collection Success Over Time by Site",
@@ -215,10 +218,9 @@ ggplot(cumulative_collection, aes(x = g_ng, y = percent_of_remaining, fill = g_n
              labeller = labeller(site = c("high" = "High", "low" = "Low"),
                                  collection_point = c("t1" = "T1", "t2" = "T2", "t3" = "T3"))) +
   scale_fill_manual(
-    values = c("g" = "#ef4444", "ng" = "#3b82f6"),
+    values = c("g" = "#F8766D", "ng" = "#00BFC4"),
     labels = c("g" = "Galvanized", "ng" = "Non-Galvanized"),
-    name = "Treatment"
-  ) +
+    name = "Treatment") +
   labs(title = "Plant Collection Success Over Time by Site",
        subtitle = "Percentage of remaining plants collected at each time point (started with n=60 per treatment per site)",
        x = "Treatment",
@@ -264,7 +266,7 @@ ggplot(missed_collection, aes(x = site, y = percent_missed, fill = g_ng)) +
             position = position_dodge(width = 0.9), 
             vjust = -0.5, 
             size = 3) +
-  scale_fill_manual(values = c("g" = "#dc2626", "ng" = "#2563eb"),
+  scale_fill_manual("g" = "#F8766D", "ng" = "#00BFC4",
                     labels = c("g" = "Galvanized", "ng" = "Non-Galvanized"),
                     name = "Treatment") +
   labs(title = "Plants Not Collected (Missed) by Site and Treatment",

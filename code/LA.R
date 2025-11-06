@@ -24,19 +24,7 @@ collected <- data %>%
     has_weight = !is.na(shoot_weight >0) | !is.na(rhizome_weight >0),
     has_blade_measurements = !is.na(b1_full),
     has_epiphytes = !is.na(epi_weight) & epi_weight > 0)
-
-# Process natural shoots similarly
-#collected_natural <- data_natural %>%
-#  filter(!is.na(date_collected)) %>%
-#  mutate(
-#    has_length = !is.na(length_measured) | !is.na(length_calculated),
-#    has_weight = !is.na(shoot_weight) | !is.na(rhizome_weight),
-#    has_blade_measurements = !is.na(b1_full),
-#    has_epiphytes = !is.na(epi_weight) & epi_weight > 0,
-#    g_ng = "natural")  # Ensure natural shoots are marked
-
-# Combine both datasets
-#collected_with_measurements <- bind_rows(collected_natural, collected)
+collected
 
 #filter out for ones with site and total length measurements
 length_data_all <- collected %>%
@@ -75,7 +63,7 @@ la_summary_treatment <- length_data_all %>%
 print(la_summary_treatment)
 
 
-# Only looking at High and low sight LA!
+# Only looking at High and low sight and natural for refrence LA!
 
 la_data <- length_data_all %>%
   filter(!is.na(leaf_area), !is.na(g_ng), g_ng %in% c("g", "ng", "none"), !is.na(collection_point), site %in% c("high", "low", "natural"))
@@ -101,10 +89,10 @@ ggplot(la_data,  aes(x = site, y = leaf_area, fill = g_ng)) +
             vjust = -0.5,
             size = 3) +
   facet_grid(~ collection_point, scales = "free_x", space = "free_x") +
-  scale_fill_manual(values = c("g" = "#ef4444", "ng" = "#3b82f6"),
+  scale_fill_manual(values = c("g" = "#F8766D", "ng" = "#00BFC4"),
                     labels = c("g" = "Galvanized", "ng" = "Non-Galvanized"),
                     name = "Treatment") +
-  scale_color_manual(values = c("g" = "#dc2626", "ng" = "#2563eb"),
+  scale_color_manual(values = c("g" = "#F8766D", "ng" = "#00BFC4"),
                      labels = c("g" = "Galvanized", "ng" = "Non-Galvanized"),
                      name = "Treatment") +
   labs(title = "Leaf Area (Length × Width × Blade Number)\nby Site, Treatment, and Timepoint",
@@ -120,15 +108,14 @@ ggplot(la_data,  aes(x = site, y = leaf_area, fill = g_ng)) +
     strip.text = element_text(size = 12, face = "bold"))
 str(la_data)
 
+mod1 <- lm(leaf_area ~ g_ng, data = la_data)
 mod1a <- lm(leaf_area ~ g_ng * site, data = la_data)
 summary(mod1a)
+mod1b <- lm(leaf_area ~ site, data = la_data)
 
+mod2 <- lm(leaf_area ~ collection_point, data = la_data)
 mod2a<- lm(leaf_area ~ g_ng * collection_point * site, data = la_data)
 summary(mod2a)
-
-emm <- emmeans(mod2a, ~ g_ng | collection_point * site)
-emm_t3 <- contrast(emm, method = "pairwise", by = c("collection_point", "site"))
-emm_t3 <- summary(emm_t3)
 
 mod3a <-lm(leaf_area ~ g_ng * collection_point, data = la_data)
 summary(mod3a)
@@ -137,226 +124,37 @@ mod4a <-lm(leaf_area ~ site * collection_point, data = la_data)
 summary(mod4a)
 
 # Compare  models
-model.sel(mod1a, mod2a, mod3a, mod4a)
+model.sel(mod1a, mod2a, mod3a, mod4a, mod1, mod1b, mod2)
+#model 4a and 3a top w2 within 2 AIC units
+summary(mod4a)
+summary(mod3a)
 
 
-# 3. Three-way ANOVA
+#Three-way ANOVA
 # Testing effects of treatment, site, and collection_point on RGR
 model_anova <- aov(leaf_area ~ g_ng * site * collection_point, 
                    data = la_data)
+model.sel(mod1a, mod2a, mod3a, mod4a, mod1, mod1b, mod2, model_anova)
+#model anova within 2 AIC units of top but 4th ranked
 
 # Check assumptions
 par(mfrow = c(2, 2))
 plot(model_anova)
 
-# Levene's test for homogeneity of variance
+# Levene's test
 leveneTest(leaf_area ~ g_ng * site * collection_point, 
            data = la_data)
 
-# Results
-summary(model_anova)
+# For Kruskal-Wallis test (non-parametric)
+# Test treatment effect
+kruskal.test(leaf_area ~ g_ng, data = la_data)
 
-# Kruskal-Wallis tests
-kruskal.test(RGR ~ treatment, data = growtht_clean)
-kruskal.test(RGR ~ site, data = growtht_clean)
-kruskal.test(RGR ~ collection_point, data = growtht_clean)
+# Test site effect
+kruskal.test(leaf_area ~ site, data = la_data)
 
-# Separate analyses by factor
-# Effect of treatment
-wilcox.test(RGR ~ treatment, data = growtht_clean)
-
-# Effect by site
-growtht_clean %>%
-  group_by(site) %>%
-  summarise(
-    p_value = wilcox.test(RGR ~ treatment)$p.value,
-    .groups = "drop")
-
-# Effect by site and collection point
-growtht_clean %>%
-  group_by(site, collection_point) %>%
-  summarise(
-    p_value = wilcox.test(RGR ~ treatment)$p.value,
-    n_g = sum(treatment == "g"),
-    n_ng = sum(treatment == "ng"),
-    .groups = "drop")
+# Test collection point effect
+kruskal.test(leaf_area ~ collection_point, data = la_data)
 
 
 
 
-
-#-----------legth sheath ratio---------------------
-# Summary statistics for length/sheath ratio by site
-ratio_summary_site <- length_data_all %>%
-  filter(!is.na(length_sheath_ratio)) %>%
-  group_by(site) %>%
-  summarise(
-    n = n(),
-    mean_ratio = mean(length_sheath_ratio, na.rm = TRUE),
-    sd_ratio = sd(length_sheath_ratio, na.rm = TRUE),
-    median_ratio = median(length_sheath_ratio, na.rm = TRUE),
-    .groups = 'drop')
-print(ratio_summary_site)
-
-# Summary statistics for leaf area by site
-la_summary_site <- length_data_all %>%
-  filter(!is.na(leaf_area)) %>%
-  group_by(site) %>%
-  summarise(
-    n = n(),
-    mean_LA = mean(leaf_area, na.rm = TRUE),
-    sd_LA = sd(leaf_area, na.rm = TRUE),
-    median_LA = median(leaf_area, na.rm = TRUE),
-    .groups = 'drop')
-print(la_summary_site)
-
-# Summary by site and treatment and time point 
-ratio_summary_treatment <- length_data_all %>%
-  filter(!is.na(length_sheath_ratio), !is.na(g_ng), g_ng %in% c("g", "ng", "none")) %>%
-  group_by(site, g_ng, collection_point) %>%
-  summarise(
-    n = n(),
-    mean_ratio = mean(length_sheath_ratio, na.rm = TRUE),
-    sd_ratio = sd(length_sheath_ratio, na.rm = TRUE),
-    .groups = 'drop')
-print(ratio_summary_treatment)
-
-#print and save nice table for documents
-ratio_summary_treatment %>%
-  mutate(
-    g_ng = case_when(
-      g_ng == "g" ~ "Galvanized",
-      g_ng == "ng" ~ "Non-Galvanized",
-      g_ng == "none" ~ "Reference",
-      TRUE ~ g_ng),
-    site = str_to_title(site)) %>%
-  gt() %>%
-  tab_header(
-    title = "Length/Sheath Ratio Summary",
-    subtitle = "By Site, Treatment, and Timepoint") %>%
-  cols_label(
-    site = "Site",
-    g_ng = "Treatment",
-    collection_point = "Timepoint",
-    n = "N",
-    mean_ratio = "Mean Ratio",
-    sd_ratio = "SD") %>%
-  fmt_number(
-    columns = c(mean_ratio, sd_ratio),
-    decimals = 2) %>%
-  gtsave("outputs/ratio_summary_table.html")
-
-# Check how many valid ratios we have
-length_data_all %>%
-  summarise(
-    total_rows = n(),
-    has_total_length = sum(!is.na(total_length)),
-    has_sheath_length = sum(!is.na(sheath_length)),
-    has_ratio = sum(!is.na(length_sheath_ratio)))
-
-#stats
-#Treatment × Timepoint (pooling across sites)
-mod1 <- lm(leaf_area ~ g_ng* site, data = length_data_all)
-summary(mod1)
-
-# Check assumptions
-par(mfrow = c(2, 2))
-plot(mod1)
-par(mfrow = c(1, 1))
-summary(mod1)
-
-# Treatment × Timepoint × Site
-mod2 <- lm(leaf_area ~ g_ng * collection_point * site, data = length_data_all)
-
-# Check assumptions
-par(mfrow = c(2, 2))
-plot(mod2)
-par(mfrow = c(1, 1))
-
-#check that model 2 is better
-summary(mod2)
-model.sel(mod1, mod2)
-
-# Plot length/sheath ratio by site, treatment, and timepoint
-ratio_data <- length_data_all %>%
-  filter(!is.na(length_sheath_ratio), !is.na(g_ng), g_ng %in% c("g", "ng", "none"), !is.na(collection_point))
-
-# Calculate sample sizes and max values for positioning
-n_labels_ratio <- ratio_data %>%
-  group_by(site, g_ng, collection_point) %>%
-  summarise(
-    n = sum(!is.na(length_sheath_ratio)),
-    max_val = max(length_sheath_ratio, na.rm = TRUE),
-    .groups = "drop")
-
-ggplot(ratio_data, aes(x = site, y = length_sheath_ratio, fill = g_ng)) +
-  geom_boxplot(alpha = 0.5, outlier.shape = NA, 
-               position = position_dodge(width = 0.75)) +
-  geom_point(aes(color = g_ng), 
-             position = position_jitterdodge(jitter.width = 0.2, dodge.width = 0.75),
-             alpha = 0.6, size = 2) +
-  geom_text(data = n_labels_ratio, 
-            aes(x = site, y = max_val, label = paste0("n=", n)),
-            position = position_dodge(width = 0.75),
-            vjust = -0.5,
-            size = 3) +
-  facet_grid(~ collection_point, scales = "free_x", space = "free_x") +
-  scale_fill_manual(values = c("g" = "#ef4444", "ng" = "#3b82f6"),
-                    labels = c("g" = "Galvanized", "ng" = "Non-Galvanized"),
-                    name = "Treatment") +
-  scale_color_manual(values = c("g" = "#dc2626", "ng" = "#2563eb"),
-                     labels = c("g" = "Galvanized", "ng" = "Non-Galvanized"),
-                     name = "Treatment") +
-  labs(title = "Length/Sheath Ratio by Site, Treatment, and Timepoint",
-       x = "Site",
-       y = "Length/Sheath Ratio") +
-  scale_x_discrete(labels = c("donor" = "Donor", "high" = "High", "low" = "Low")) +
-  theme_minimal() +
-  theme(
-    plot.title = element_text(size = 16, face = "bold", hjust = 0.5),
-    axis.title = element_text(size = 12, face = "bold"),
-    axis.text = element_text(size = 11),
-    legend.position = "top",
-    strip.text = element_text(size = 12, face = "bold"))
-
-# Plot length/sheath ratio by site, treatment, and timepoint
-ratio_data <- length_data_all %>%
-  filter(!is.na(length_sheath_ratio), !is.na(g_ng), g_ng %in% c("g", "ng", "none"), !is.na(collection_point))
-
-# Calculate sample sizes and max values for positioning
-n_labels_ratio <- ratio_data %>%
-  group_by(site, g_ng, collection_point) %>%
-  summarise(
-    n = sum(!is.na(length_sheath_ratio)),
-    max_val = max(length_sheath_ratio, na.rm = TRUE),
-    .groups = "drop")
-
-ggplot(ratio_data, aes(x = site, y = length_sheath_ratio, fill = g_ng)) +
-  geom_boxplot(alpha = 0.5, outlier.shape = NA, 
-               position = position_dodge(width = 0.75)) +
-  geom_point(aes(color = g_ng), 
-             position = position_jitterdodge(jitter.width = 0.2, dodge.width = 0.75),
-             alpha = 0.6, size = 2) +
-  geom_text(data = n_labels_ratio, 
-            aes(x = site, y = max_val, label = paste0("n=", n)),
-            position = position_dodge(width = 0.75),
-            vjust = -0.5,
-            size = 3) +
-  facet_grid(~ collection_point, scales = "free_x", space = "free_x") +
-  scale_fill_manual(values = c("g" = "#ef4444", "ng" = "#3b82f6"),
-                    labels = c("g" = "Galvanized", "ng" = "Non-Galvanized"),
-                    name = "Treatment") +
-  scale_color_manual(values = c("g" = "#dc2626", "ng" = "#2563eb"),
-                     labels = c("g" = "Galvanized", "ng" = "Non-Galvanized"),
-                     name = "Treatment") +
-  labs(title = "Length/Sheath Ratio by Site, Treatment, and Timepoint",
-       x = "Site",
-       y = "Length/Sheath Ratio") +
-  scale_x_discrete(labels = c("donor" = "Donor", "high" = "High", "low" = "Low")) +
-  theme_minimal() +
-  theme(
-    plot.title = element_text(size = 16, face = "bold", hjust = 0.5),
-    axis.title = element_text(size = 12, face = "bold"),
-    axis.text = element_text(size = 11),
-    legend.position = "top",
-    strip.text = element_text(size = 12, face = "bold"))

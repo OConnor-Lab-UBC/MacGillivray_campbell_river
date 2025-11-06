@@ -83,6 +83,8 @@ total_by_site <- data %>%
     percent = (n / planted) * 100)
 print(total_by_site)
 
+write.csv(total_by_site, "processed_data/collection_data.csv", row.names = FALSE)
+
 # Remove non-numeric IDs, keep only numeric plant IDs (this is plants that kept original tag)
 #data_numeric_only <- data %>%
  # filter(!is.na(id), id != "", !grepl("[^0-9]", id))

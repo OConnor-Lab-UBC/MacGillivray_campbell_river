@@ -108,6 +108,11 @@ ggplot(la_data,  aes(x = site, y = leaf_area, fill = g_ng)) +
     strip.text = element_text(size = 12, face = "bold"))
 str(la_data)
 
+
+#STATS
+model_anova <- aov(leaf_area ~ g_ng * site * collection_point, 
+                   data = la_data)
+
 mod1 <- lm(leaf_area ~ g_ng, data = la_data)
 mod1a <- lm(leaf_area ~ g_ng * site, data = la_data)
 summary(mod1a)
@@ -128,22 +133,14 @@ model.sel(mod1a, mod2a, mod3a, mod4a, mod1, mod1b, mod2)
 #model 4a and 3a top w2 within 2 AIC units
 summary(mod4a)
 summary(mod3a)
+summary(mod2a)
+summary(model_anova)
 
-
-#Three-way ANOVA
-# Testing effects of treatment, site, and collection_point on RGR
-model_anova <- aov(leaf_area ~ g_ng * site * collection_point, 
-                   data = la_data)
-model.sel(mod1a, mod2a, mod3a, mod4a, mod1, mod1b, mod2, model_anova)
 #model anova within 2 AIC units of top but 4th ranked
 
 # Check assumptions
 par(mfrow = c(2, 2))
 plot(model_anova)
-
-# Levene's test
-leveneTest(leaf_area ~ g_ng * site * collection_point, 
-           data = la_data)
 
 # For Kruskal-Wallis test (non-parametric)
 # Test treatment effect
@@ -155,6 +152,28 @@ kruskal.test(leaf_area ~ site, data = la_data)
 # Test collection point effect
 kruskal.test(leaf_area ~ collection_point, data = la_data)
 
+#remove natural
+hl_data <- la_data %>%
+  filter(!site == "natural")
+
+himodel_anova <- aov(leaf_area ~ g_ng * site * collection_point, 
+                   data = hl_data)
+
+himod1 <- lm(leaf_area ~ g_ng, data = hl_data)
+himod1a <- lm(leaf_area ~ g_ng * site, data = hl_data)
+himod1b <- lm(leaf_area ~ site, data = hl_data)
+
+himod2 <- lm(leaf_area ~ collection_point, data = hl_data)
+himod2a<- lm(leaf_area ~ g_ng * collection_point * site, data = hl_data)
 
 
+himod3a <-lm(leaf_area ~ g_ng * collection_point, data = hl_data)
 
+himod4a <-lm(leaf_area ~ site * collection_point, data = hl_data)
+
+
+# Compare  models
+model.sel(himod1a, himod2a, himod3a, himod4a, himod1, himod1b, himod2)
+
+summary(himod2)
+summary(himod4a)

@@ -21,7 +21,8 @@ colnames(growth_combined)
 
 # Remove rows where both condition_index and cut_index are NA
 growth_clean <- growth_combined %>%
-  filter(!is.na(condition_index) | !is.na(cut_index)) %>%
+  filter(!is.na(condition_index)) %>%
+  filter(!is.na(g_ng)) %>%
   filter(site %in% c("donor", "high", "low"))
 
 
@@ -72,8 +73,6 @@ p1b <- condition_summary %>%
 
 plot(p1b)
 
-condition_data <- growth_clean %>%
-  filter(site %in% c("high", "low"), !is.na(condition_index))
 
 # Three-way ANOVA
 condition_anova <- aov(condition_index ~ g_ng * site * collection_point, 

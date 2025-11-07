@@ -117,7 +117,7 @@ rgr_plot <- growth3 %>%
   labs(
     title = "Seagrass relative growth rate",
     x = "Collection Point",
-    y = "RGR") +
+    y = "Relative growth rate (extenstion standardized to sheath / duration)") +
   theme_minimal()
 plot(rgr_plot)
 
@@ -150,13 +150,13 @@ summary(anova1)
 
 # Check assumptions
 par(mfrow = c(2, 2))
-plot(model_anova)
+plot(anova1)
 #looks OK
 
 library(rstatix)
 #install.packages("rstatix")
 
-# Site effect (p = 0.0354)
+# Site effect (p = 0.016)
 pairwise_reslut1 <- pairwise_t_test(growth3, RGR ~ site, p.adjust.method = "bonferroni")
 pairwise_reslut1
 
@@ -165,6 +165,53 @@ pairwsis_result2<- pairwise_t_test(growth3, RGR ~ collection_point, p.adjust.met
 pairwsis_result2
 
 
+#remove donor
+# Testing effects of treatment, site, and collection_point on RGR
+growth4 <- growth3 %>%
+  filter(site != "donor")
+
+anova4 <- aov(RGR ~ treatment * site * collection_point, 
+              data = growth4)
+summary(anova4)
+
+#stick to the one with donor
+
+mod1 <- lm(stndrd_to_sheath ~ treatment* site + collection_point, data = growth3)
+summary(mod1)
+
+mod2 <- lm(stndrd_to_sheath ~ site+ collection_point, data = growth3)
+summary(mod2)
+
+mod2.5 <- lm(stndrd_to_sheath ~ treatment + collection_point, data = growth3)
+summary(mod2.5)
+
+mod4 <- lm(stndrd_to_sheath ~ collection_point, data = growth3)
+summary(mod4)
+
+mod0 <- lm(stndrd_to_sheath ~ 1, data = growth3)
+summary(mod0)
+
+mod3 <- lm(stndrd_to_sheath ~ treatment + site, data = growth3)
+summary(mod3)
+
+mod3.2 <- lm(stndrd_to_sheath ~ treatment * collection_point, data = growth3)
+summary(mod3.2)
+
+model.sel(mod1, mod2, mod2.5, mod4, anova1, mod3, mod3.2, mod0)
+
+#anova 1 best
+
+
+
+
+
+
+
+
+
+
+
+#____________________extention
 #extention
 ext_plot <- growth3 %>%
   ggplot(aes(x = collection_point, y = stndrd_to_sheath, fill = treatment)) +

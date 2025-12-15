@@ -14,6 +14,7 @@ library(MuMIn)
 #read in data
 library(ggplot2)
 
+#download data
 growth<- read_csv("raw_data/plant_data.csv")
 
 #peek at the data 
@@ -22,8 +23,28 @@ head(growth)
 View(growth)
 names(growth)
 
-# clean data and add LA And RGR
+#check summary 
+site_time_summary <- growth %>%
+  filter(!is.na(date_collected)) %>%
+  count(site, collection_point) %>%
+  arrange(site, collection_point)
+site_time_summary
+
+# Full summary with site, collection_point, and treatment
+full_summary <- growth %>%
+  filter(!is.na(date_collected)) %>%
+  count(site, collection_point, g_ng) %>%
+  pivot_wider(
+    names_from = g_ng,
+    values_from = n,
+    values_fill = 0) %>%
+  arrange(site, collection_point)
+print(full_summary)
+
+#clean data and add LA And RGR
 growth2 <- growth %>%
+  filter(!is.na(date_collected)) %>%
+  filter(!is.na(g_ng)) %>%
   mutate(
     sheath_length = as.numeric(sheath_length),
     duration = as.numeric(duration_days),  # Also need to convert duration
@@ -33,10 +54,29 @@ growth2 <- growth %>%
     LA = length_measured * shoot_width * blade_number_tx) %>%
   mutate(
     RGR = stndrd_to_sheath / duration,  # Use the abbreviated name you created
-    RGR_old = stndrd_to_old / duration) # Use the abbreviated name you created
+    RGR_old = stndrd_to_old / duration) %>% # Use the abbreviated name you created
+  mutate(
+    RGR = ifelse(is.na(RGR), 0, RGR),
+    RGR_old = ifelse(is.na(RGR_old), 0, RGR_old))
 head(growth2) #check to see that the new growth columns have been added
 
-#create data frame with only collections with RGR for RGR analysis
+
+#check NA in RGR 
+growth2 %>%
+  group_by(site, g_ng) %>%
+  summarize(na_count = sum(is.na(RGR)))
+
+#NA in RGR just means 0 growth as plant as we already have filtered for is collected
+#this means we need to change NA RGR to 0 
+full_summary2 <- growth2
+  count(site, collection_point, g_ng) %>%
+  pivot_wider(
+    names_from = g_ng,
+    values_from = n,
+    values_fill = 0) %>%
+  arrange(site, collection_point)
+print(full_summary2)
+
 growth3<- growth2 %>%
   mutate(treatment = g_ng) %>%
   filter(!is.na(date_collected), !is.na(RGR),
@@ -45,7 +85,20 @@ growth3<- growth2 %>%
          collection_point %in% c("t1", "t2", "t3", "t0"))
 head(growth3)
 
-# Making plots -------------------------------------------------------
+#check nas
+full_summary3 <- growth3 %>%
+  filter(!is.na(date_collected)) %>%
+  count(site, collection_point, g_ng) %>%
+  pivot_wider(
+    names_from = g_ng,
+    values_from = n,
+    values_fill = 0) %>%
+  arrange(site, collection_point)
+print(full_summary3)
+
+
+
+# Making plots ------------------RGR# Making plots -------------------------------------------------------
 
 
 # Let's say we simply want to get a sense of the distribution of maximum shoot lengths among the clipped vs unclipped treatments. A histogram with colour codes for the two treatments would do:
@@ -62,7 +115,7 @@ length_hist
 #this is very 0 inflated but otherwise normal. For this study it should be ok to remove 0s and just look at ones with leghth. We will look at 0's and survival later
 
 # Check the RGR data by treatment
-growth3 %>%
+growth2 %>%
   group_by(treatment, site, collection_point) %>%
   summarise(
     total = n(),
@@ -84,7 +137,7 @@ RGR_hist
 #right skewed
 
 # Boxplot for RGR  
-# n_labels from the filtered growtht data
+# n_labels from the filtered growth data
 n_labels <- growth3 %>%
   group_by(site, collection_point, treatment) %>%
   summarise(
@@ -117,8 +170,55 @@ rgr_plot <- growth3 %>%
   labs(
     title = "Seagrass relative growth rate",
     x = "Collection Point",
-    y = "Relative growth rate (extenstion standardized to sheath / duration)") +
+    y = "Relative growth rate (extension / sheath*duration)") +
   theme_minimal()
+plot(rgr_plot)
+
+
+#only high and low adn T1 / T2 as donor site had unreliable collection and t3 pinpricks should have grown off so 0 growth is not accurate
+hl <- growth3 %>%
+  filter(site %in% c("high", "low")) %>%
+  filter(collection_point %in% c("t1", "t2"))
+
+n_labelshl <- hl %>%
+  group_by(site, collection_point, treatment) %>%
+  summarise(
+    n = n(),
+    max_rgr = suppressWarnings(max(RGR, na.rm = TRUE)),
+    .groups = "drop") %>%
+  mutate(
+    y_pos = if_else(is.infinite(max_rgr), 0.05, max_rgr + 0.05))
+
+rgr_plot <- hl %>%
+  ggplot(aes(x = collection_point, y = RGR, fill = treatment)) +
+  geom_boxplot() +
+  geom_jitter(
+    aes(color = treatment),
+    position = position_jitterdodge(jitter.width = 0.2, dodge.width = 0.75),
+    size = 1.5,
+    alpha = 0.6) +
+  geom_text(
+    data = n_labelshl,
+    aes(
+      x = collection_point,
+      y = y_pos,
+      label = paste0("n=", n),
+      group = treatment),
+    position = position_dodge(width = 0.75),
+    size = 3,
+    vjust = -1) +
+  facet_wrap(~ site) +
+  labs(
+    title = "Seagrass relative growth rate",
+    x = "Collection Point",
+    y = "Relative growth rate (extension / sheath*duration)") +
+  theme_minimal() +
+  theme(
+    plot.title = element_text(size = 20),
+    axis.title = element_text(size = 14),
+    axis.text = element_text(size = 12),
+    legend.title = element_text(size = 12),
+    legend.text = element_text(size = 12))
 plot(rgr_plot)
 
 #Now the STATS
@@ -129,6 +229,10 @@ ggplot(growth3, aes(x = RGR)) +
   facet_wrap(~ site) +
   theme_minimal()
 #same as before just seperated by site, still all right skewed
+ggplot(hl, aes(x = RGR)) +
+  geom_histogram(bins = 30) +
+  facet_wrap(~ site) +
+  theme_minimal()
 
 # QQ plot by site
 ggplot(growth3, aes(sample = RGR)) +
@@ -138,6 +242,13 @@ ggplot(growth3, aes(sample = RGR)) +
   theme_minimal()
 #not perfect but maybe ok?
 
+ggplot(hl, aes(sample = RGR)) +
+  stat_qq() +
+  stat_qq_line() +
+  facet_wrap(~ site) +
+  theme_minimal()
+
+#not perfect but maybe ok?
 library(car)
 library(emmeans)
 
@@ -152,6 +263,16 @@ summary(anova1)
 par(mfrow = c(2, 2))
 plot(anova1)
 #looks OK
+
+#for only T1/ T2 high and low
+# Three-way ANOVA
+modelhl <- aov(RGR ~ site * collection_point * treatment, data = hl)
+summary(modelhl)
+
+# Check assumptions
+par(mfrow = c(2, 2))
+plot(modelhl)
+
 
 library(rstatix)
 #install.packages("rstatix")
@@ -174,32 +295,32 @@ anova4 <- aov(RGR ~ treatment * site * collection_point,
               data = growth4)
 summary(anova4)
 
-#stick to the one with donor
+#further stats for high low, t1/t2 
 
-mod1 <- lm(stndrd_to_sheath ~ treatment* site + collection_point, data = growth3)
+mod1 <- lm(RGR ~ treatment* site + collection_point, data = hl)
 summary(mod1)
 
-mod2 <- lm(stndrd_to_sheath ~ site+ collection_point, data = growth3)
+mod2 <- lm(RGR ~ site+ collection_point, data = hl)
 summary(mod2)
 
-mod2.5 <- lm(stndrd_to_sheath ~ treatment + collection_point, data = growth3)
+mod2.5 <- lm(RGR ~ treatment + collection_point, data = hl)
 summary(mod2.5)
 
-mod4 <- lm(stndrd_to_sheath ~ collection_point, data = growth3)
+mod4 <- lm(RGR ~ collection_point, data = hl)
 summary(mod4)
 
-mod0 <- lm(stndrd_to_sheath ~ 1, data = growth3)
+mod0 <- lm(RGR ~ 1, data = hl)
 summary(mod0)
 
-mod3 <- lm(stndrd_to_sheath ~ treatment + site, data = growth3)
+mod3 <- lm(RGR ~ treatment + site, data = hl)
 summary(mod3)
 
-mod3.2 <- lm(stndrd_to_sheath ~ treatment * collection_point, data = growth3)
+mod3.2 <- lm(RGR ~ treatment * collection_point, data = hl)
 summary(mod3.2)
 
-model.sel(mod1, mod2, mod2.5, mod4, anova1, mod3, mod3.2, mod0)
+model.sel(mod1, mod2, mod2.5, mod4, modelhl, mod3, mod3.2, mod0)
 
-#anova 1 best
+#mod3 and 2 best, no interactions
 
 
 

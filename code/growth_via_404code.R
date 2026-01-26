@@ -15,7 +15,7 @@ library(MuMIn)
 library(ggplot2)
 
 #download data
-growth<- read_csv("raw_data/plant_data.csv")
+growth<- read_csv("raw_data/Tansplant_data.csv")
 
 #peek at the data 
 str(growth)
@@ -68,7 +68,7 @@ growth2 %>%
 
 #NA in RGR just means 0 growth as plant as we already have filtered for is collected
 #this means we need to change NA RGR to 0 
-full_summary2 <- growth2
+full_summary2 <- growth2 %>%
   count(site, collection_point, g_ng) %>%
   pivot_wider(
     names_from = g_ng,
@@ -149,11 +149,11 @@ n_labels <- growth3 %>%
 
 # Recreate plot
 rgr_plot <- growth3 %>%
-  ggplot(aes(x = collection_point, y = RGR, fill = treatment)) +
-  geom_boxplot() +
-  geom_jitter(
+  ggplot(aes(x = collection_point, y = RGR)) +
+  geom_boxplot(aes(fill = treatment), position = position_dodge(width = 0.75)) +
+  geom_point(
     aes(color = treatment),
-    position = position_jitterdodge(jitter.width = 0.2, dodge.width = 0.75),
+    position = position_dodge(width = 0.75),
     size = 1.5,
     alpha = 0.6) +
   geom_text(
@@ -172,8 +172,63 @@ rgr_plot <- growth3 %>%
     x = "Collection Point",
     y = "Relative growth rate (extension / sheath*duration)") +
   theme_minimal()
+
 plot(rgr_plot)
 
+#--was having problem with plot this is diagnost code---
+##look at tw high data as points dont look right
+#ht2 <- growth3 %>%
+ # filter(site %in% c("high")) %>%
+ # filter(collection_point %in% c("t2"))%>%
+  #filter(g_ng %in% c("g")) %>%
+ # select(id, RGR, g_ng)
+#ht2
+
+# First, let's check if your 'treatment' column matches 'g_ng'
+#growth3 %>%
+ # filter(site == "high", collection_point == "t2") %>%
+ # select(id, g_ng, treatment, RGR) %>%
+  #head(10)
+
+# Also check if 'treatment' has any NA values
+# filter(is.na(treatment)) %>%
+  #nrow()
+
+# Check if you have any custom color scales set globally
+# or in your environment that might be causing issues
+
+# Try this simpler version to isolate the problem:
+#growth3 %>%
+ # filter(site == "high", collection_point == "t2") %>%
+ # ggplot(aes(x = collection_point, y = RGR, color = treatment)) +
+ # geom_jitter(width = 0.2, size = 2, alpha = 0.8) +
+  #labs(title = "Test plot - high site t2 only")
+
+
+# Check  "ng" values at high site T2
+#growth3 %>%
+ # filter(site == "high", collection_point == "t2") %>%
+ # select(id, RGR, g_ng) %>%
+ # arrange(desc(RGR))%>%
+ # print(n = 34)
+
+# Check if the same data is being plotted twice somehow
+# Look at your plotting code - are you adding multiple geom_point() layers?
+
+# Also check if there are actual duplicate rows in your data
+#growth3 %>%
+ #filter(site == "high", collection_point == "t2") %>%
+ # group_by(id, RGR, g_ng) %>%
+ # filter(n() > 1) %>%
+ # arrange(id)
+
+# Or check for duplicate IDs with different values
+#growth3 %>%
+ # filter(site == "high", collection_point == "t2") %>%
+  #add_count(id) %>%
+ # filter(n > 1) %>%
+ # arrange(id)
+##-----------------------------##
 
 #only high and low adn T1 / T2 as donor site had unreliable collection and t3 pinpricks should have grown off so 0 growth is not accurate
 hl <- growth3 %>%
@@ -192,9 +247,9 @@ n_labelshl <- hl %>%
 rgr_plot <- hl %>%
   ggplot(aes(x = collection_point, y = RGR, fill = treatment)) +
   geom_boxplot() +
-  geom_jitter(
+  geom_point(
     aes(color = treatment),
-    position = position_jitterdodge(jitter.width = 0.2, dodge.width = 0.75),
+    position = position_dodge(width = 0.75),
     size = 1.5,
     alpha = 0.6) +
   geom_text(

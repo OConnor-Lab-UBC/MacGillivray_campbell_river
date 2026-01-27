@@ -62,7 +62,7 @@ total_by_site <- growth_clean %>%
     planted = 60,
     total_collected = n,
     proportion = n / planted,
-    percent = (n / planted) * 100) %>%
+    percent = (n / planted) * 100) 
 print(total_by_site)
 
 

@@ -31,6 +31,89 @@ duplicates <- growth_clean$id[duplicated(growth_clean$id)]
 duplicates
 
 
+#Count NAs in condition_index
+sum(is.na(growth_clean$condition_index))
+
+# See which rows have NA condition_index
+growth_clean %>%
+  filter(is.na(condition_index))
+
+# Check if the IDs exist in the cond dataframe
+growth_clean %>%
+  filter(site == "low", is.na(condition_index)) %>%
+  select(id, site, g_ng, collection_point) %>%
+  print()
+
+# Check if these IDs exist in the original cond dataframe
+missing_ids <- growth_clean %>%
+  filter(site == "low", is.na(condition_index)) %>%
+  pull(id)
+
+cond %>%
+  filter(id %in% missing_ids)
+
+#### THERE ARE SOME PLANTS THAT DONT HAVE CONDTION WHICH ONES?
+# Find IDs in growth that don't have condition data
+missing_condition <- growth_clean %>%
+  filter(is.na(condition_index)) %>%
+  select(id, site, g_ng, collection_point, date_collected, 
+         length_measured, rhizome_length, rhizome_weight, 
+         condition_index, cut_index) %>%
+  arrange(site, g_ng)
+missing_condition
+
+# Summary: do they have length data?
+missing_condition %>%
+  summarise(
+    total_missing_condition = n(),
+    has_length = sum(!is.na(length_measured) & length_measured > 0),
+    has_rhizome_length = sum(!is.na(rhizome_length)),
+    has_rhizome_weight = sum(!is.na(rhizome_weight)),
+    completely_empty = sum(is.na(length_measured) & is.na(rhizome_length) & is.na(rhizome_weight)))
+
+# Break it down by site
+missing_condition %>%
+  group_by(site, g_ng) %>%
+  summarise(
+    count = n(),
+    has_length = sum(!is.na(length_measured) & length_measured > 0),
+    has_rhizome = sum(!is.na(rhizome_length) | !is.na(rhizome_weight)),
+    .groups = "drop")
+
+##Low site
+# Look at low site missing condition only
+low_missing_condition <- growth_clean %>%
+  filter(site == "low", is.na(condition_index)) %>%
+  select(id, site, g_ng, collection_point, date_collected, 
+         length_measured, rhizome_length, rhizome_weight, 
+         condition_index, cut_index) %>%
+  arrange(g_ng, id)
+
+# View them
+low_missing_condition
+
+# Get just the IDs to search for in your photo files
+low_missing_ids <- low_missing_condition %>%
+  pull(id)
+print(low_missing_ids)
+
+# Check if these IDs exist at all in the cond dataframe
+cond %>%
+  filter(id %in% low_missing_ids)
+
+# See what the low site IDs look like in cond vs growth
+# From cond (low site):
+cond %>%
+  filter(grepl("^[Ll]", id)) %>%  # IDs starting with L or l
+  select(id, condition_index) %>%
+  head(20)
+
+# From growth (low site):
+growth %>%
+  filter(site == "low") %>%
+  select(id, site) %>%
+  head(20)
+####
 # See all combinations of site and collection_point with counts
 site_time_summary <- growth_clean %>%
   filter(!is.na(date_collected)) %>%
@@ -78,7 +161,7 @@ print(collection_summary)
 
 #donor site had many problems so we will just look at High and Low
 
-# Survival based on condition index > 2
+# Survival based on condition index > 1
 total_collected <- growth_clean %>%
   filter(!is.na(date_collected), !is.na(g_ng),
          site %in% c("high", "low", "donor"),
@@ -86,8 +169,9 @@ total_collected <- growth_clean %>%
   group_by(site, g_ng) %>%
   summarise(
     total_collected = n(),
-    cond_survived = sum(condition_index > 2, na.rm = TRUE),
-    collected_poor = sum(condition_index <= 2, na.rm = TRUE),
+    cond_survived = sum(condition_index > 1, na.rm = TRUE),
+    not_survived = sum(condition_index %in% c(0, 1), na.rm = TRUE),
+    collected_poor = sum(condition_index %in% c(2, 3), na.rm = TRUE),
     with_shoots = sum(!is.na(length_measured) & length_measured > 0, na.rm = TRUE),
     rhizome_only = sum((is.na(length_measured) | length_measured == 0) & 
                          (!is.na(rhizome_weight) | !is.na(rhizome_length)), 
@@ -95,13 +179,12 @@ total_collected <- growth_clean %>%
     .groups = "drop") %>%
   mutate(
     not_collected = 60- total_collected, # there may be missing conditon photos so we will look purly at ones we have condition for for this
-    not_survived = collected_poor + not_collected,
+    not_survived = not_survived + not_collected,
     survived_porportion = cond_survived / 60,
     survival_rate = survived_porportion * 100,
     not_survived_rate = (not_survived / 60) * 100,
     with_shoot_rate = (with_shoots / 60) * 100,
     collection_rate = (total_collected / 60) * 100)
-
 print(total_collected)
 
 #Survival plot
@@ -112,14 +195,13 @@ survival_plot <- ggplot(total_collected,
                                cond_survived, "/60)")),
             position = position_dodge(width = 0.8),
             vjust = -0.5, size = 3.5) +
-  labs(title = "Plant Survival Rate by Site and Treatment",
+  labs(title = "Plant Survival by Site and Treatment",
        subtitle = "Survival defined as condition index > 2",
        x = "Site",
-       y = "Survival Rate (%)",
+       y = "Survival (%)",
        fill = "Treatment") +
   ylim(0, 110) +
   theme_minimal()
-
 plot(survival_plot)
 
 # Filter out donor site and reshape data for stacked bar chart
@@ -148,11 +230,11 @@ ggplot(survival_simple,
   geom_text(aes(label = paste0(round(proportion, 1), "%")),
             position = position_stack(vjust = 0.5), size = 3) +
   facet_wrap(~ site) +
-  scale_fill_manual(values = c("Mortality" = "#D32F2F",
-                               "Survived" = "#2196F3")) +
+  scale_fill_manual(values = c("Mortality" = "#808080",
+                               "Survived" = "#2E9FDF")) +
   scale_x_discrete(labels = c("g" = "Galvanized", "ng" = "Not Galvanized")) +
   labs(title = "Overall Survival vs Mortality by Site and Treatment",
-       subtitle = "100% scale — survival defined as condition index > 2",
+       subtitle = "Survival defined as condition index >1",
        x = "Treatment", y = "Proportion (%)",
        fill = "Outcome") +
   theme_minimal() +
@@ -189,13 +271,55 @@ ggplot(survival_detailed,
   )) +
   scale_x_discrete(labels = c("g" = "Galvanized", "ng" = "Not Galvanized")) +
   labs(title = "Detailed Plant Status by Site and Treatment",
-       subtitle = "Survival, poor condition, not collected, and missing condition data",
+       subtitle = "Survival, poor condition (rated <=2), not collected, and missing condition data",
        x = "Treatment", y = "Proportion (%)",
        fill = "Status") +
   theme_minimal() +
   theme(plot.title = element_text(face = "bold"),
         strip.text = element_text(face = "bold"))
 
+###################
+# Add NA condition category
+survival_detailed <- survival %>%
+  mutate(
+    na_condition = 60 - (cond_survived + collected_poor + not_collected)) %>%
+  select(site, g_ng, cond_survived, collected_poor, not_collected, na_condition) %>%
+  pivot_longer(
+    cols = c(cond_survived, collected_poor, not_collected, na_condition),
+    names_to = "status",
+    values_to = "count") %>%
+  mutate(
+    proportion = count / 60 * 100,
+    status = factor(
+      status,
+      levels = c("na_condition", "not_collected", "collected_poor", "cond_survived"),
+      labels = c("Condition NA", "Not Collected", "Poor Condition", "Survived")))
+
+ggplot(survival_detailed,
+       aes(x = g_ng, y = proportion, fill = status)) +
+  geom_col(width = 0.7, position = "stack") +
+  geom_text(aes(label = ifelse(status == "Condition NA", 
+                               paste0("(", count, "/60)"),
+                               ifelse(proportion == 0, "",  # Hide 0% labels
+                                      paste0(round(proportion, 1), "%\n(", count, "/60)")))),
+            position = position_stack(vjust = 0.5), size = 3) +
+  facet_wrap(~ site) +
+  scale_fill_manual(values = c(
+    "Condition NA" = "#CCCCCC",
+    "Not Collected" = "#D32F2F",
+    "Poor Condition" = "grey60",
+    "Survived" = "#2196F3"
+  )) +
+  scale_x_discrete(labels = c("g" = "Galvanized", "ng" = "Not Galvanized")) +
+  labs(title = "Detailed Plant Status by Site and Treatment",
+       subtitle = "Survival, poor condition (rated <2), not collected, and missing condition data",
+       x = "Treatment", y = "Proportion (%)",
+       fill = "Status") +
+  theme_minimal() +
+  theme(plot.title = element_text(face = "bold"),
+        strip.text = element_text(face = "bold"))
+
+######################################################
 
 # Background data (one per site × treatment)
 bg_data <- survival %>%

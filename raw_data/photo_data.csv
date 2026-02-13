@@ -51,7 +51,7 @@ id,g_ng,length_before,lenght_collect,time_point,site,before,after,cut_index,cond
 93,g,,,t1,low,,,1,4,,,guessed due to  measurmemtns
 94,ng,,,t2,high,IMG_0033.jpeg,,1,0,fell apart/ wrangled,,no photo but notes on measurments was that it was too wrangled
 95,ng,,,,,IMG_0040.jpeg,,,,,,not collected/ lost
-96,g,,,,,IMG_1238.HEIC,,,,,,
+96,g,,,,,IMG_1238.HEIC,,,,,,not collected/ lost
 97,ng,,,t1,low,,IMG_9082.HEIC,1,3,ends of blades look dark,3,
 99,ng,,,t2,high,,99,2,0,,0,
 100,g,,,,,IMG_0066.jpeg,,,,plant isnt fully in t0 photo,,not collected/ lost
@@ -71,7 +71,7 @@ id,g_ng,length_before,lenght_collect,time_point,site,before,after,cut_index,cond
 117,ng,,,,,IMG_0048.jpeg,,,,,,not collected
 118,g,,,,,IMG_1218.HEIC,,,,,,not collected
 119,ng,,,t2,low,,119,1,4,,4,
-120,g,,,,,IMG_1202.HEIC,,,,,,
+120,g,,,,,IMG_1202.HEIC,,,,,,not collected
 121,g,,,t2,donor,IMG_1217.HEIC,IMG_1618.HEIC,2,0,cant tell it apart from bundle,1,
 122,ng,,,t2,donor,,,1,4,,,no photo but from measurments
 123,ng,,,t2,low,,123,1,3,,3,
@@ -80,7 +80,7 @@ id,g_ng,length_before,lenght_collect,time_point,site,before,after,cut_index,cond
 128,g,,,,,IMG_1240.HEIC,,,,has lateral shoots at t0,,not collected
 129,g,,,t2,high,,,2,0,measurments say no soot,,
 130,ng,,,t2,low,,130,1,4,,4,
-134,g,,,,,IMG_0032.jpeg,,,,,,
+134,g,,,,,IMG_0032.jpeg,,,,,,not collected
 135,g,,,t2,donor,IMG_1222.HEIC,IMG_9661.HEIC,1,4,,,
 137,ng,,,t1,high,,IMG_8009.HEIC,1,4,clearly has lateral shoot at T1,4,
 138,g,,,,,IMG_1243.HEIC,,,,,,not collected
@@ -203,7 +203,7 @@ id,g_ng,length_before,lenght_collect,time_point,site,before,after,cut_index,cond
 310,g,66.057,56.463,t2,low,IMG_0001.jpeg,310,1,3,no major or obvious change in colour or general health,4,
 311,g,,,t3,low,,P8131487.JPG,2,0,only rhizome ,,
 312,g,,,t2,donor,IMG_1229.HEIC,IMG_1617.HEIC,2,0,couldnt tell plant in bundle,1,
-313,ng,,,,,IMG_0038.jpeg,,,,,,
+313,ng,,,,,IMG_0038.jpeg,,,,,,not collected
 316,ng,,,t3,low,,P8131494.JPG,0,5,,5,
 318,g,,,,,IMG_1190.HEIC,,,,,,not collected
 322,g,,,,,IMG_0057.jpeg,,,,plant isnt fully in t0 photo,,not collected
@@ -230,7 +230,7 @@ id,g_ng,length_before,lenght_collect,time_point,site,before,after,cut_index,cond
 351,g,,,t1,low,,,1,3,"off mesurments, 4 blades not much new growth",,
 352,ng,,,t2,high,,352,1,4,,4,
 353,ng,,,t2,low,,353,1,4,,4,
-354,ng,,,,,IMG_0070.jpeg,,,,not collected,,
+354,ng,,,,,IMG_0070.jpeg,,,,not collected,,not collected
 355,g,,,t2,high,,355,1,3,,4,
 357,ng,,,t1,donor,IMG_1251.HEIC,IMG_1437.HEIC,1,4,has lateral shoots at t0,4,
 358,ng,,,t1,high,,IMG_8010.HEIC,1,3,,4,
@@ -245,34 +245,35 @@ id,g_ng,length_before,lenght_collect,time_point,site,before,after,cut_index,cond
 369,g,,,t2,high,,369,2,1,,1,
 370,ng,,,t1,low,,IMG_9068.HEIC,0,5,,5,
 371,ng,,,t2,donor,,371,1,4,,4,
-372,g,,,,,IMG_1247.HEIC,,,,not colected,,
+372,g,,,,,IMG_1247.HEIC,,,,not colected,,not collected
 373,g,,,t1,donor,IMG_1192.HEIC,IMG_1441.HEIC,1,4,has lateral shoots at t0,4,
 375,ng,,,t2,high,,375,1,4,,4,
 376,ng,,,t2,low,,376,1,4,,4,
 378,ng,,,t2,low,,378.HEIC,1,4,,4,
-379,ng,,,,,IMG_0059.jpeg,,,,not colected,,
+379,ng,,,,,IMG_0059.jpeg,,,,not colected,,not collected
 380,g,,,t2,low,IMG_0007.jpeg,380,1,4,,4,
 381,g,,,t3,low,,P8131485.JPG,1,4,has lateral shoot,,
 382,ng,,,t2,low,,382,1,4,,4,
-383,g,,,,,IMG_1239.HEIC,,,,not colected,,
+383,g,,,,,IMG_1239.HEIC,,,,not colected,,not collected
+384,g,,,t1,low,,,1,4,from growth measurments,,has sheath and baby leaf and decent new groth but marked as cut
 386,g,,,t3,low,,P8131472.JPG,1,4,,,
 387,g,,,t1,donor,IMG_1241.HEIC,,1,3,"off measurments 4 leaves, 0 extention and cut",,
 389,ng,,,t1,low,,,1,3,"off measurments 4 leaves, not much extention and cut",,
 390,ng,,,t1,donor,,IMG_1447.HEIC,1,4,,4,
 391,g,,,t1,low,,,1,5,"off measuments, 7 leaves good growth, no mark of being cut",,
-392,g,,,,,IMG_9975.jpeg,,,,not collected,,
+392,g,,,,,IMG_9975.jpeg,,,,not collected,,not collected
 393,g,,,t2,high,,393,1,4,,4,
 395,ng,,,t2,low,,395,1,4,,4,
 396,ng,,,t2,donor,IMG_1210.HEIC,,1,3,shoot shredded in sampling,,
 397,g,,,t3,low,,P8131483.JPG,2,1,"small piece of leaf, with one lateral",,
-399,ng,,,,,IMG_1249.HEIC,,,,not collected,,
-400,g,,,,,IMG_0022.jpeg,,,,,,
-402,g,,,,,IMG_1220.HEIC,,,,,,
-403,g,,,,,IMG_0076.jpeg,,,,,,
+399,ng,,,,,IMG_1249.HEIC,,,,not collected,,not collected
+400,g,,,,,IMG_0022.jpeg,,,,,,not collected
+402,g,,,,,IMG_1220.HEIC,,,,,,not collected
+403,g,,,,,IMG_0076.jpeg,,,,,,not collected
 405,ng,,,t3,low,,P8131458.JPG,2,0,only rhizome,,
 406,ng,,,t2,low,,406,0,5,,5,
 407,ng,,,t3,low,,P8131482.JPG,2,0,only rhizome,,
-408,g,,,,,IMG_0035.jpeg,,,,,,
+408,g,,,,,IMG_0035.jpeg,,,,,,not collected
 409,g,,,t3,low,,P8131492.JPG,2,0,pretty wrangled/ only rooh and some leaf debris,,
 NID1,ng,,,t1,,,IMG_1440.HEIC,1,4,,4,
 NID3LACL,g,,,,,,IMG_8127.HEIC,1,3,"cut on both ends, no rhizome",2,

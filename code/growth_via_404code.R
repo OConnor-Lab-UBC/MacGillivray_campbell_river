@@ -15,9 +15,14 @@ library(MuMIn)
 library(ggplot2)
 library(car)
 library(emmeans)
+#install.packages("ggpubr")
+library(ggpubr)
+
+library(rstatix)
+#install.packages("rstatix")
 
 #download data
-growth<- read_csv("raw_data/Tansplant_data.csv")
+growth<- read_csv("raw_data/Transplant_data.csv")
 
 #peek at the data 
 str(growth)
@@ -25,17 +30,10 @@ head(growth)
 View(growth)
 names(growth)
 
-#check summary 
-site_time_summary <- growth %>%
-  filter(!is.na(date_collected)) %>%
-  count(site, collection_point) %>%
-  arrange(site, collection_point)
-site_time_summary
-
-# Full summary with site, collection_point, and treatment
+# Summary with site, collection_point, and treatment
 full_summary <- growth %>%
   filter(!is.na(date_collected)) %>%
-  filter (length_measured > 0) %>%
+  #filter (length_measured > 0) %>%
   count(site, collection_point, g_ng) %>%
   pivot_wider(
     names_from = g_ng,
@@ -71,8 +69,7 @@ growth2 %>%
   summarize(na_count = sum(is.na(RGR)))
 #no NAs good
 
-##NA in RGR just means 0 growth as plant as we already have filtered for is collected
-#this means we would need to change NA RGR to 0, but we are good now that we removed the 0 length mesured
+#check summary with removed 0 length (mortality in survival plot)
 full_summary2 <- growth2 %>%
   count(site, collection_point, g_ng) %>%
   pivot_wider(
@@ -82,12 +79,13 @@ full_summary2 <- growth2 %>%
   arrange(site, collection_point)
 print(full_summary2)
 
+#for RGR this would only be at treatment locations and on T2, 2, and maybe 3 so lets filter out other sutff
 growth3<- growth2 %>%
   mutate(treatment = g_ng) %>%
   filter(!is.na(date_collected), !is.na(RGR),
          site %in% c("high", "low", "donor"),
          treatment %in% c("g", "ng"),
-         collection_point %in% c("t1", "t2", "t3", "t0"))
+         collection_point %in% c("t1", "t2", "t3"))
 head(growth3)
 
 #check nas
@@ -100,7 +98,7 @@ full_summary3 <- growth3 %>%
     values_fill = 0) %>%
   arrange(site, collection_point)
 print(full_summary3)
-
+#still no Nas good.
 
 
 # Making plots ------------------RGR# Making plots -------------------------------------------------------
@@ -139,7 +137,7 @@ RGR_hist <- growth3 %>%
   geom_histogram(binwidth = 0.05, alpha = 0.6, position = "identity") +
   theme_classic()
 RGR_hist
-#right skewed
+#right skewed, and still fairly 0 inflated
 
 # Boxplot for RGR  
 # n_labels from the filtered growth data
@@ -172,76 +170,51 @@ rgr_plot <- growth3 %>%
     size = 3,
     vjust = -1) +
   facet_wrap(~ site) +
+  theme_bw(base_size = 14) +
   labs(
     title = "Seagrass relative growth rate",
     x = "Collection Point",
     y = "Relative growth rate (extension / sheath*duration)") +
   theme_minimal()
-
 plot(rgr_plot)
 
-#--was having problem with plot this is diagnost code---
-##look at tw high data as points dont look right
-#ht2 <- growth3 %>%
- # filter(site %in% c("high")) %>%
- # filter(collection_point %in% c("t2"))%>%
-  #filter(g_ng %in% c("g")) %>%
- # select(id, RGR, g_ng)
-#ht2
 
-# First, let's check if your 'treatment' column matches 'g_ng'
-#growth3 %>%
- # filter(site == "high", collection_point == "t2") %>%
- # select(id, g_ng, treatment, RGR) %>%
-  #head(10)
+##There is no effect of treatment so we will look at just site
+##RGRplot 2 (no treatment, only T1 and T2)
 
-# Also check if 'treatment' has any NA values
-# filter(is.na(treatment)) %>%
-  #nrow()
-
-# Check if you have any custom color scales set globally
-# or in your environment that might be causing issues
-
-# Try this simpler version to isolate the problem:
-#growth3 %>%
- # filter(site == "high", collection_point == "t2") %>%
- # ggplot(aes(x = collection_point, y = RGR, color = treatment)) +
- # geom_jitter(width = 0.2, size = 2, alpha = 0.8) +
-  #labs(title = "Test plot - high site t2 only")
+growth3_b<- growth2 %>%
+  filter(!is.na(date_collected), !is.na(RGR),
+         site %in% c("high", "low", "donor"),
+         g_ng %in% c("g", "ng"),
+         collection_point %in% c("t1", "t2"))
 
 
-# Check  "ng" values at high site T2
-#growth3 %>%
- # filter(site == "high", collection_point == "t2") %>%
- # select(id, RGR, g_ng) %>%
- # arrange(desc(RGR))%>%
- # print(n = 34)
+#quick look at data without dividing by treatment
+growth3_b %>%
+  group_by(site, collection_point) %>%
+  summarise(
+    total = n(),
+    na_values = sum(is.na(RGR)),
+    inf_values = sum(is.infinite(RGR), na.rm = TRUE),
+    valid_values = sum(is.finite(RGR)),
+    mean_RGR = mean(RGR, na.rm = TRUE),
+    median_RGR = median(RGR, na.rm = TRUE))
 
-# Check if the same data is being plotted twice somehow
-# Look at your plotting code - are you adding multiple geom_point() layers?
+# Create histogram for RGR distribution 
+RGR_hist <- growth3_b %>%
+  filter(is.finite(RGR)) %>% 
+  ggplot(aes(x = RGR, 
+             fill = factor(g_ng), 
+             color = factor(g_ng))) + 
+  geom_histogram(binwidth = 0.05, alpha = 0.6, position = "identity") +
+  theme_classic()
+RGR_hist
+#right skewed
 
-# Also check if there are actual duplicate rows in your data
-#growth3 %>%
- #filter(site == "high", collection_point == "t2") %>%
- # group_by(id, RGR, g_ng) %>%
- # filter(n() > 1) %>%
- # arrange(id)
-
-# Or check for duplicate IDs with different values
-#growth3 %>%
- # filter(site == "high", collection_point == "t2") %>%
-  #add_count(id) %>%
- # filter(n > 1) %>%
- # arrange(id)
-##-----------------------------##
-
-#only high and low adn T1 / T2 as donor site had unreliable collection and t3 pinpricks should have grown off so 0 growth is not accurate
-hl <- growth3 %>%
-  filter(site %in% c("high", "low")) %>%
-  filter(collection_point %in% c("t1", "t2"))
-
-n_labelshl <- hl %>%
-  group_by(site, collection_point, treatment) %>%
+# Boxplot for RGR without seperating by treatment (only site)
+##n_labels from the filtered growth data
+n_labels_b <- growth3_b %>%
+  group_by(site, collection_point) %>%
   summarise(
     n = n(),
     max_rgr = suppressWarnings(max(RGR, na.rm = TRUE)),
@@ -249,46 +222,37 @@ n_labelshl <- hl %>%
   mutate(
     y_pos = if_else(is.infinite(max_rgr), 0.05, max_rgr + 0.05))
 
-rgr_plot <- hl %>%
-  ggplot(aes(x = collection_point, y = RGR, fill = treatment)) +
+## Plot WITH donor site (colored boxes)
+rgr_plot_b <- growth3_b %>%
+  ggplot(aes(x = site, y = RGR, fill = site)) +  # Added fill = site
   geom_boxplot() +
   geom_point(
-    aes(color = treatment),
-    position = position_dodge(width = 0.75),
     size = 1.5,
     alpha = 0.6) +
   geom_text(
-    data = n_labelshl,
+    data = n_labels_b,
     aes(
-      x = collection_point,
+      x = site,
       y = y_pos,
-      label = paste0("n=", n),
-      group = treatment),
-    position = position_dodge(width = 0.75),
+      label = paste0("n=", n)),
     size = 3,
-    vjust = -1) +
-  facet_wrap(~ site) +
+    vjust = -0.5) +
+  facet_wrap(~ collection_point) +
+  scale_fill_manual(values = c("high" = "#FF8080", "low" = "#00CED1")) + 
+  theme_bw(base_size = 14) +
   labs(
     title = "Seagrass relative growth rate",
     x = "Collection Point",
     y = "Relative growth rate (extension / sheath*duration)") +
   theme_minimal() +
-  theme(
-    plot.title = element_text(size = 20),
-    axis.title = element_text(size = 14),
-    axis.text = element_text(size = 12),
-    legend.title = element_text(size = 12),
-    legend.text = element_text(size = 12))
-plot(rgr_plot)
+  theme(legend.position = "none") +# Remove legend since it's redundant
+plot(rgr_plot_b)
 
-#high low and donor just no T3
-#only high and low adn T1 / T2 as donor site had unreliable collection and t3 pinpricks should have grown off so 0 growth is not accurate
-T1_2 <- growth3 %>%
-  filter(site %in% c("high", "low", "donor")) %>%
-  filter(collection_point %in% c("t1", "t2"))
 
-n_labelsT12 <- T1_2 %>%
-  group_by(site, collection_point, treatment) %>%
+## Plot WITHOUT donor site (colored boxes)
+n_labels_b_no_donor <- growth3_b %>%
+  filter(site != "donor") %>%  # Exclude donor
+  group_by(site, collection_point) %>%
   summarise(
     n = n(),
     max_rgr = suppressWarnings(max(RGR, na.rm = TRUE)),
@@ -296,52 +260,41 @@ n_labelsT12 <- T1_2 %>%
   mutate(
     y_pos = if_else(is.infinite(max_rgr), 0.05, max_rgr + 0.05))
 
-rgr_plot <- T1_2 %>%
-  ggplot(aes(x = collection_point, y = RGR, fill = treatment)) +
+rgr_plot_b_no_donor <- growth3_b %>%
+  filter(site != "donor") %>%  # Exclude donor
+  ggplot(aes(x = site, y = RGR, fill = site)) +
   geom_boxplot() +
   geom_point(
-    aes(color = treatment),
-    position = position_dodge(width = 0.75),
     size = 1.5,
     alpha = 0.6) +
   geom_text(
-    data = n_labelsT12,
+    data = n_labels_b_no_donor,
     aes(
-      x = collection_point,
+      x = site,
       y = y_pos,
-      label = paste0("n=", n),
-      group = treatment),
-    position = position_dodge(width = 0.75),
+      label = paste0("n=", n)),
     size = 3,
-    vjust = -1) +
-  facet_wrap(~ site) +
+    vjust = -0.5) +
+  facet_wrap(~ collection_point) +
+  scale_fill_manual(values = c("high" = "#FF8080", "low" = "#00CED1")) +  
   labs(
     title = "Seagrass relative growth rate",
     x = "Collection Point",
     y = "Relative growth rate (extension / sheath*duration)") +
   theme_minimal() +
-  theme(
-    plot.title = element_text(size = 20),
-    axis.title = element_text(size = 14),
-    axis.text = element_text(size = 12),
-    legend.title = element_text(size = 12),
-    legend.text = element_text(size = 12))
-plot(rgr_plot)
+  theme(legend.position = "none")
+plot(rgr_plot_b_no_donor)
+## lets keep donor site in for now even though methods were different
 
-#Now the STATS
+#Now the STATS 
 
-# Visualize distribution
+## Visualize distribution
+ggplot(growth3_b, aes(x = RGR)) +
+  geom_histogram(bins = 30) +
+  facet_wrap(~ site) +
+  theme_minimal()
+##with treatment
 ggplot(growth3, aes(x = RGR)) +
-  geom_histogram(bins = 30) +
-  facet_wrap(~ site) +
-  theme_minimal()
-#same as before just seperated by site, still all right skewed
-ggplot(hl, aes(x = RGR)) +
-  geom_histogram(bins = 30) +
-  facet_wrap(~ site) +
-  theme_minimal()
-
-ggplot(T1_2, aes(x = RGR)) +
   geom_histogram(bins = 30) +
   facet_wrap(~ site) +
   theme_minimal()
@@ -352,98 +305,65 @@ ggplot(growth3, aes(sample = RGR)) +
   stat_qq_line() +
   facet_wrap(~ site) +
   theme_minimal()
-
-#not perfect but maybe ok?
-
-ggplot(T1_2, aes(sample = RGR)) +
+ggplot(growth3_b, aes(sample = RGR)) +
   stat_qq() +
   stat_qq_line() +
   facet_wrap(~ site) +
   theme_minimal()
-
-#not perfect but maybe ok?
-
-ggplot(hl, aes(sample = RGR)) +
-  stat_qq() +
-  stat_qq_line() +
-  facet_wrap(~ site) +
-  theme_minimal()
+##not perfect but maybe ok?
 
 
-# ANOVA
+## ANOVA
 
-# Testing effects of treatment, site, and collection_point on RGR
+## Testing effects of treatment, site, and collection_point on RGR
 anova1 <- aov(RGR ~ treatment * site * collection_point, 
                    data = growth3)
 summary(anova1)
+### site and collection point sig
+
+##Testing effects of site, and collection_point on RGR if ignore treatment
+anova1_b <- aov(RGR ~ site * collection_point, 
+              data = growth3_b)
+summary(anova1_b)
+###site sig
 
 # Check assumptions
 par(mfrow = c(2, 2))
 plot(anova1)
-#looks OK
+#looks OK?
 
-#for only T1/ T2 high and low
-# Three-way ANOVA
-modelhl <- aov(RGR ~ site * collection_point * treatment, data = hl)
-summary(modelhl)
-
-# Check assumptions
 par(mfrow = c(2, 2))
-plot(modelhl)
+plot(anova1_b)
+#looks OK?
 
 
-library(rstatix)
-#install.packages("rstatix")
+## Tukey's HSD (ANOVA post-hocs)
+TukeyHSD(anova1, "site")
+##only low and donor diff
 
-# Site effect (p = 0.016)
-pairwise_reslut1 <- pairwise_t_test(growth3, RGR ~ site, p.adjust.method = "bonferroni")
-pairwise_reslut1
+## Tukey's HSD (ANOVA post-hocs)
+TukeyHSD(anova1_b, "site")
+##low and high and low and donor 
 
-# Collection point effect (p < 0.001)
-pairwsis_result2<- pairwise_t_test(growth3, RGR ~ collection_point, p.adjust.method = "bonferroni")
-pairwsis_result2
-
-
-#remove donor
+#remove donor due to methods
 # Testing effects of treatment, site, and collection_point on RGR
 growth4 <- growth3 %>%
+  filter(site != "donor")
+
+growth4_b <- growth3_b %>%
   filter(site != "donor")
 
 anova4 <- aov(RGR ~ treatment * site * collection_point, 
               data = growth4)
 summary(anova4)
 
-#further stats for high low, t1/t2 
-
-mod1 <- lm(RGR ~ treatment* site + collection_point, data = hl)
-summary(mod1)
-
-mod2 <- lm(RGR ~ site+ collection_point, data = hl)
-summary(mod2)
-
-mod2.5 <- lm(RGR ~ treatment + collection_point, data = hl)
-summary(mod2.5)
-
-mod4 <- lm(RGR ~ collection_point, data = hl)
-summary(mod4)
-
-mod0 <- lm(RGR ~ 1, data = hl)
-summary(mod0)
-
-mod3 <- lm(RGR ~ treatment + site, data = hl)
-summary(mod3)
-
-mod3.2 <- lm(RGR ~ treatment * collection_point, data = hl)
-summary(mod3.2)
-
-model.sel(mod1, mod2, mod2.5, mod4, modelhl, mod3, mod3.2, mod0)
-
-#mod3 and 2 best, no interactions
+anova4_b <- aov(RGR ~ site * collection_point, 
+              data = growth4_b)
+summary(anova4_b)
 
 #further stats using g3
-
-mod1a <- lm(RGR ~ treatment* site + collection_point, data = growth3)
-summary(mod1a)
+mod1b <- lm(RGR ~ treatment* site + collection_point, data = growth3)
+summary(mod1b)
 
 mod2b <- lm(RGR ~ site+ collection_point, data = growth3)
 summary(mod2b)
@@ -463,34 +383,33 @@ summary(mod3b)
 mod3.2b <- lm(RGR ~ treatment * collection_point, data = growth3)
 summary(mod3.2b)
 
-model.sel(mod1b, mod2b, mod2.5b, mod4b, mod3b, mod3.2b, mod0b)
+model.sel(mod1b, mod2b, mod2.5b, mod4b, mod3b, mod3.2b, mod0b, anova1)
+#best model dosent have effect of treatment but top two have effect of site
 
-
-#further stats for high low and donor t1/t2 only
-
-mod1c <- lm(RGR ~ treatment* site + collection_point, data = T1_2)
+#further stats for ignoring treatment data
+mod1c <- lm(RGR ~ site + collection_point, data = growth3_b)
 summary(mod1c)
 
-mod2c <- lm(RGR ~ site+ collection_point, data = T1_2)
+mod2c <- lm(RGR ~ site+ collection_point, data = growth3_b)
 summary(mod2c)
 
-mod2.5c <- lm(RGR ~ treatment + collection_point, data = T1_2)
+mod2.5c <- lm(RGR ~ collection_point, data = growth3_b)
 summary(mod2.5c)
 
-mod4c <- lm(RGR ~ collection_point, data = T1_2)
+mod4c <- lm(RGR ~ collection_point, data = growth3_b)
 summary(mod4c)
 
-mod0c <- lm(RGR ~ 1, data = T1_2)
+mod0c <- lm(RGR ~ 1, data = growth3_b)
 summary(mod0c)
 
-mod3c <- lm(RGR ~ treatment + site, data = T1_2)
+mod3c <- lm(RGR ~ site, data = growth3_b)
 summary(mod3c)
 
-mod3.2c <- lm(RGR ~ treatment * collection_point, data = T1_2)
+mod3.2c <- lm(RGR ~ collection_point, data = growth3_b)
 summary(mod3.2c)
 
-model.sel(mod1c, mod2c, mod2.5c, mod4c, mod0c, mod3c, mod3.2c)
-
+model.sel(mod1c, mod2c, mod2.5c, mod4c, mod0c, mod3c, mod3.2c, anova1_b)
+# best model jsut site second best only 1AIC away and has collection point
 
 
 #____________________extention
@@ -583,54 +502,4 @@ ggplot(rgr_summary, aes(x = treatment, y = count, fill = treatment)) +
     x = "Treatment",
     y = "Count of RGR == 0 or NA") +
   theme_minimal()
-
-# STATS -------------------------------------------------------------
-#just time point 2
-#rgr_clean2 <- growtht %>% 
-  #filter(!is.na(stndrd_to_sheath)) %>%
- # filter(treatment %in% c("ng", "g")) %>%
-#  filter(collection_point == "t2")
-
-mod1 <- lm(stndrd_to_sheath ~ treatment* site, data = growtht)
-summary(mod1)
-
-mod2 <- lm(stndrd_to_sheath ~ site, data = growtht)
-summary(mod2)
-
-mod0 <- lm(stndrd_to_sheath ~ 1, data = growtht)
-summary(mod0)
-
-mod3 <- lm(stndrd_to_sheath ~ treatment + site, data = growtht)
-
-model.sel(mod1, mod2, mod0, mod3)
-
-
-rgr_clean3 <- growtht%>% 
-  filter(!is.na(stndrd_to_sheath)) %>%
-  filter(treatment %in% c("ng", "g")) %>%
-  filter(collection_point %in% c("t1", "t2"))
-
-mod1 <- lm(stndrd_to_sheath ~ treatment* site + collection_point, data = rgr_clean3)
-summary(mod1)
-
-mod2 <- lm(stndrd_to_sheath ~ site+ collection_point, data = rgr_clean3)
-summary(mod2)
-
-mod2.5 <- lm(stndrd_to_sheath ~ treatment + collection_point, data = rgr_clean3)
-summary(mod2.5)
-
-mod4 <- lm(stndrd_to_sheath ~ collection_point, data = rgr_clean3)
-summary(mod4)
-
-mod0 <- lm(stndrd_to_sheath ~ 1, data = rgr_clean3)
-summary(mod0)
-
-mod3 <- lm(stndrd_to_sheath ~ treatment + site, data = rgr_clean3)
-
-mod3.2 <- lm(stndrd_to_sheath ~ treatment * collection_point, data = rgr_clean3)
-
-model.sel(mod1, mod2, mod2.5, mod4, mod0, mod3, mod3.2)
-
-
-
 

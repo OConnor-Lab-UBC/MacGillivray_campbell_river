@@ -6,14 +6,7 @@ library(emmeans)
 #install.packages("emmeans")
 #install.packages("gt")
 
-data<- read_csv("raw_data/plant_data.csv")
-
-# Remove non-numeric IDs, keep only numeric plant IDs
-#data_id_only <- data %>%
-#  filter(!is.na(id), id != "", !grepl("[^0-9]", id))
-
-#data_natural <- data %>%
-#  filter(site == "natural")
+data<- read_csv("raw_data/Transplant_data.csv")
 
 # Filter for collected plants with measurement values
 collected <- data %>%
@@ -109,6 +102,44 @@ ggplot(la_data,  aes(x = site, y = leaf_area, fill = g_ng)) +
 str(la_data)
 
 
+# Calculate sample sizes and max values for positioning
+n_labels_la_b <- la_data %>%
+  group_by(site, collection_point) %>%
+  summarise(
+    n = sum(!is.na(leaf_area)),
+    max_val = max(leaf_area, na.rm = TRUE),
+    .groups = "drop")
+
+ggplot(la_data, aes(x = site, y = leaf_area, fill = site)) +
+  geom_boxplot() +
+  geom_point(alpha = 0.6, size = 2, 
+             position = position_jitter(width = 0.2)) +
+  geom_text(data = n_labels_la_b,
+            aes(x = site, y = max_val, label = paste0("n=", n)),
+            vjust = -0.5,
+            size = 3) +
+  facet_grid(~ collection_point, scales = "free_x", space = "free_x",
+             labeller = labeller(collection_point = c(
+               "t0" = "0 days",
+               "t1" = "6 days", 
+               "t2" = "14 days",
+               "t3" = "68 days"))) +
+  scale_fill_manual(values = c("high" = "#FF8080", "low" = "#00CED1"),
+                    labels = c("high" = "High", "low" = "Low")) +
+  labs(title = "Leaf Area (Length × Width × Blade Number)\nby Site and Timepoint",
+       x = "Site",
+       y = "Leaf Area (cm²)",
+       fill = "Site") +
+  scale_x_discrete(labels = c("high" = "High", "low" = "Low")) +
+  theme_minimal() +
+  theme(
+    plot.title = element_text(size = 16, face = "bold", hjust = 0.5),
+    axis.title = element_text(size = 12, face = "bold"),
+    axis.text = element_text(size = 11),
+    legend.position = "none",
+    strip.text = element_text(size = 12, face = "bold"),
+    panel.spacing = unit(0.5, "lines"))
+
 #STATS
 model_anova <- aov(leaf_area ~ g_ng * site * collection_point, 
                    data = la_data)
@@ -177,3 +208,4 @@ model.sel(himod1a, himod2a, himod3a, himod4a, himod1, himod1b, himod2)
 
 summary(himod2)
 summary(himod4a)
+

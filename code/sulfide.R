@@ -43,8 +43,8 @@ data_combined <- bind_rows(data_h2s, data_fe)
 data_avg_h2s<- data_h2s %>%
   group_by(site, type, depth_cm, time_point) %>%
   summarise(
-    h2s_avg = mean(h2s, na.rm = TRUE),
-    h2s_se = sd(h2s, na.rm = TRUE) / sqrt(n()),
+    h2s_avg = mean(conc, na.rm = TRUE),
+    h2s_se = sd(conc, na.rm = TRUE) / sqrt(n()),
     .groups = "drop")
 
 #look at data
@@ -85,7 +85,7 @@ ggplot() +
            # vjust = 1.5, size = 3, color = "black") +
   facet_grid(time_point ~ site) +
   scale_y_reverse() +
-  coord_cartesian(ylim = c(max(data$depth_cm, na.rm = TRUE), 0)) +
+  coord_cartesian(ylim = c(max(data_h2s$depth_cm, na.rm = TRUE), 0)) +
   scale_color_manual(
     values = c("g" = "black", "ng" = "green", "away" = "blue"),
     labels = c("g" = "Galvanized", "ng" = "Non-galvanized", "away" = "Away")) +
@@ -115,7 +115,7 @@ ggplot() +
              aes(x = conc, y = depth_cm, color = type), 
              size = 2, alpha = 0.5) +
   # Error bars for averages
-  geom_errorbarh(data = data_avg, 
+  geom_errorbarh(data = data_avg_h2s, 
                  aes(xmin = h2s_avg - h2s_se, 
                      xmax = h2s_avg + h2s_se, 
                      y = depth_cm, 
@@ -123,13 +123,13 @@ ggplot() +
                  height = 0.5, 
                  linewidth = 0.8) +
   # Average points (shaped by type)
-  geom_point(data = data_avg, 
+  geom_point(data = data_avg_h2s, 
              aes(x = h2s_avg, y = depth_cm, shape = type, color = type), 
              size = 3) +
   facet_wrap(~ site, ncol = 3) +
   theme_bw(base_size = 14) +
   scale_y_reverse() +
-  coord_cartesian(ylim = c(max(data$depth_cm, na.rm = TRUE), 0)) +
+  coord_cartesian(ylim = c(max(data_h2s$depth_cm, na.rm = TRUE), 0)) +
   scale_color_manual(
     values = c("g" = "black", "ng" = "green", "away" = "blue"),
     labels = c("g" = "Galvanized", "ng" = "Non-galvanized", "away" = "Away")) +
@@ -155,19 +155,19 @@ dataaway_h2s <- data_h2s %>%
 dataaway_avg_h2s <- dataaway_h2s %>%
   group_by(site, depth_cm) %>%
   summarise(
-    h2s_avg = mean(h2s, na.rm = TRUE),
-    h2s_se = sd(h2s, na.rm = TRUE) / sqrt(n()),
+    h2s_avg = mean(conc, na.rm = TRUE),
+    h2s_se = sd(conc, na.rm = TRUE) / sqrt(n()),
     .groups = "drop")
 
 ### Create the plot
 ggplot() +
   # Individual away data points
-  geom_point(data = dataaway, 
-             aes(x = h2s, y = depth_cm), 
+  geom_point(data = dataaway_h2s, 
+             aes(x = conc, y = depth_cm), 
              color = "grey9",
              size = 2, alpha = 0.5) +
   # Error bars for averages
-  geom_errorbarh(data = dataaway_avg, 
+  geom_errorbarh(data = dataaway_avg_h2s, 
                  aes(xmin = h2s_avg - h2s_se, 
                      xmax = h2s_avg + h2s_se, 
                      y = depth_cm),
@@ -175,14 +175,14 @@ ggplot() +
                  height = 0.5, 
                  linewidth = 0.8) +
   # Average points
-  geom_point(data = dataaway_avg, 
+  geom_point(data = dataaway_avg_h2s, 
              aes(x = h2s_avg, y = depth_cm), 
              color = "blue",
              shape = 15,
              size = 3) +
   facet_wrap(~ site, ncol = 3) +
   scale_y_reverse() +
-  coord_cartesian(ylim = c(max(dataaway$depth_cm, na.rm = TRUE), 0)) +
+  coord_cartesian(ylim = c(max(dataaway_h2s$depth_cm, na.rm = TRUE), 0)) +
   labs(x = expression(H[2]*S~(mu*M)), 
        y = "Depth (cm)") +
   theme_bw() +
@@ -201,7 +201,8 @@ data_avg_fe<- data_fe %>%
   summarise(
     fe_avg = mean(conc, na.rm = TRUE),
     fe_se = sd(conc, na.rm = TRUE) / sqrt(n()),
-    .groups = "drop")
+    .groups = "drop") %>% 
+  filter(!is.na(site))
 
 #look at data
 ##Count cores for each combination
@@ -238,7 +239,7 @@ ggplot() +
   # vjust = 1.5, size = 3, color = "black") +
   facet_grid(time_point ~ site) +
   scale_y_reverse() +
-  coord_cartesian(ylim = c(max(data$depth_cm, na.rm = TRUE), 0)) +
+  coord_cartesian(ylim = c(max(data_fe$depth_cm, na.rm = TRUE), 0)) +
   scale_color_manual(
     values = c("g" = "black", "ng" = "green", "away" = "blue"),
     labels = c("g" = "Galvanized", "ng" = "Non-galvanized", "away" = "Away")) +
@@ -259,7 +260,8 @@ ggplot() +
 ##Plot for only T3
 ### Filter for T3 only
 dataT3_fe <- data_fe %>%
-  filter(time_point == "T3")  # Filter for T3 only
+  filter(time_point == "T3")  %>% 
+  filter(!is.na(site))
 
 # Create the plot
 ggplot() +
@@ -282,7 +284,7 @@ ggplot() +
   facet_wrap(~ site, ncol = 3) +
   theme_bw(base_size = 14) +
   scale_y_reverse() +
-  coord_cartesian(ylim = c(max(data$depth_cm, na.rm = TRUE), 0)) +
+  coord_cartesian(ylim = c(max(data_fe$depth_cm, na.rm = TRUE), 0)) +
   scale_color_manual(
     values = c("g" = "black", "ng" = "green", "away" = "blue"),
     labels = c("g" = "Galvanized", "ng" = "Non-galvanized", "away" = "Away")) +
@@ -335,7 +337,7 @@ ggplot() +
              size = 3) +
   facet_wrap(~ site, ncol = 3) +
   scale_y_reverse() +
-  coord_cartesian(ylim = c(max(dataaway$depth_cm, na.rm = TRUE), 0)) +
+  coord_cartesian(ylim = c(max(dataaway_fe$depth_cm, na.rm = TRUE), 0)) +
   labs(x= expression("Total Fe " * (mu*M)), 
        y = "Depth (cm)") +
   theme_bw() +

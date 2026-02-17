@@ -4,6 +4,7 @@ library(readr)
 library(ggplot2)
 library(Matrix)
 library(lme4)
+library(emmeans)
 
 #load data
 growth<- read_csv("raw_data/plant_data.csv")
@@ -144,13 +145,13 @@ plot(survival_plot)
 
 # Filter out donor site 
 survival <- total_collected %>%
-  filter(site != "donor")
+  filter(site != "donor") %>%
+  mutate(mortality = 60 - cond_survived)
 survival
 
 # --- Survival vs Mortality (100%) ---
 survival_simple <- survival %>%
   mutate(
-    mortality = 60 - cond_survived,  # all others are mortality
     survived_prop = cond_survived / 60 * 100,
     mortality_prop = mortality / 60 * 100) %>%
   select(site, g_ng, survived_prop, mortality_prop) %>%
@@ -220,33 +221,27 @@ ggplot(survival_detailed,
 #_______________________________________________________
 #TRYING STATS
 
-# GLM with binomial family (logistic regression)
-# Testing for effects of site, treatment, and their interaction
-mod1 <- glm(cbind(cond_survived, collected_poor + not_collected) ~ 
-              site * g_ng,
-            data = survival,
-            family = binomial(link = "logit"))
+# ── 2. Run the GLM ───────────────────────────────────────────────────────────
+model <- glm(cbind(cond_survived, mortality) ~ g_ng * site,
+             family = binomial,
+             data = survival)
 
-# View results
-summary(mod1)
+# ── 3. View results ──────────────────────────────────────────────────────────
+summary(model)   # coefficients and p-values
+anova(model, test = "Chisq")  # Type I ANOVA table - tests each term
 
-# Test significance of factors
-Anova(mod1, type = "III")
+# ── 4. Post-hoc pairwise comparisons ─────────────────────────────────────────
+emmeans_result <- emmeans(model, pairwise ~ g_ng | site, type = "response")
+summary(emmeans_result)
 
-# Check model fit
-1 - pchisq(mod1$deviance, mod1$df.residual)  # p > 0.05 indicates good fit
+# Compare treatments across all sites too
+emmeans_all <- emmeans(model, pairwise ~ g_ng * site, type = "response")
+summary(emmeans_all)
 
-
-mod2 <- glm(cbind(cond_survived, collected_poor + not_collected) ~ g_ng,
-            data = survival,
-            family = binomial(link = "logit"))
-summary(mod2)
-
-# Test significance of factors
-Anova(mod2, type = "III")
-
-# Check model fit
-1 - pchisq(mod2$deviance, mod1$df.residual)  # p > 0.05 indicates good fit
+# ── 5. Check for overdispersion ───────────────────────────────────────────────
+# If residual deviance >> residual df, you may need quasibinomial
+dispersion <- model$deviance / model$df.residual
+print(paste("Dispersion ratio:", round(dispersion, 2)))
 
 #_________________________________________________________________________
 

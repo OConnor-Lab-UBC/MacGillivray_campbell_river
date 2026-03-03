@@ -158,6 +158,16 @@ dataaway_avg_h2s <- dataaway_h2s %>%
     h2s_avg = mean(conc, na.rm = TRUE),
     h2s_se = sd(conc, na.rm = TRUE) / sqrt(n()),
     .groups = "drop")
+dataaway_avg_h2s
+
+###averages acoross full depth
+dataaway_avg_h2sF <- dataaway_h2s %>%
+  group_by(site) %>%
+  summarise(
+    h2s_avg = mean(conc, na.rm = TRUE),
+    h2s_se = sd(conc, na.rm = TRUE) / sqrt(n()),
+    .groups = "drop")
+dataaway_avg_h2sF
 
 ### Create the plot
 ggplot() +

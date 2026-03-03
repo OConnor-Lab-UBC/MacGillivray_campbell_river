@@ -22,7 +22,7 @@ library(rstatix)
 #install.packages("rstatix")
 
 #download data
-growth<- read_csv("raw_data/Transplant_data.csv")
+growth<- read_csv("raw_data/Tansplant_data.csv")
 
 #peek at the data 
 str(growth)
@@ -59,7 +59,10 @@ growth2 <- growth %>%
     RGR_old = stndrd_to_old / duration) %>% # Use the abbreviated name you created
   mutate(
     RGR = ifelse(is.na(RGR), 0, RGR),
-    RGR_old = ifelse(is.na(RGR_old), 0, RGR_old))
+    RGR_old = ifelse(is.na(RGR_old), 0, RGR_old)) %>%
+  mutate(site = factor(site, 
+                       levels = c("natural","donor", "low", "high"),
+                       labels = c("Natural", "Donor", "Low", "High")))
 head(growth2) #check to see that the new growth columns have been added
 
 
@@ -83,7 +86,7 @@ print(full_summary2)
 growth3<- growth2 %>%
   mutate(treatment = g_ng) %>%
   filter(!is.na(date_collected), !is.na(RGR),
-         site %in% c("high", "low", "donor"),
+         site %in% c("High", "Low", "Donor"),
          treatment %in% c("g", "ng"),
          collection_point %in% c("t1", "t2", "t3"))
 head(growth3)
@@ -142,6 +145,8 @@ RGR_hist
 # Boxplot for RGR  
 # n_labels from the filtered growth data
 n_labels <- growth3 %>%
+  filter(collection_point != "t3") %>%
+  mutate(collection_point = factor(collection_point)) %>%
   group_by(site, collection_point, treatment) %>%
   summarise(
     n = n(),
@@ -152,7 +157,9 @@ n_labels <- growth3 %>%
 
 # Recreate plot
 rgr_plot <- growth3 %>%
-  ggplot(aes(x = collection_point, y = RGR)) +
+  filter(collection_point != "t3") %>%
+  mutate(collection_point = factor(collection_point)) %>%
+  ggplot(aes(x = site, y = RGR)) +
   geom_boxplot(aes(fill = treatment), position = position_dodge(width = 0.75)) +
   geom_point(
     aes(color = treatment),
@@ -162,14 +169,14 @@ rgr_plot <- growth3 %>%
   geom_text(
     data = n_labels,
     aes(
-      x = collection_point,
+      x = site,        # <- change this to site
       y = y_pos,
       label = paste0("n=", n),
       group = treatment),
     position = position_dodge(width = 0.75),
     size = 3,
     vjust = -1) +
-  facet_wrap(~ site) +
+  facet_wrap(~ collection_point) +
   theme_bw(base_size = 14) +
   labs(
     title = "Seagrass relative growth rate",
@@ -184,7 +191,7 @@ plot(rgr_plot)
 
 growth3_b<- growth2 %>%
   filter(!is.na(date_collected), !is.na(RGR),
-         site %in% c("high", "low", "donor"),
+         site %in% c("High", "Low", "Donor"),
          g_ng %in% c("g", "ng"),
          collection_point %in% c("t1", "t2"))
 
@@ -237,21 +244,30 @@ rgr_plot_b <- growth3_b %>%
       label = paste0("n=", n)),
     size = 3,
     vjust = -0.5) +
-  facet_wrap(~ collection_point) +
-  scale_fill_manual(values = c("high" = "#FF8080", "low" = "#00CED1")) + 
-  theme_bw(base_size = 14) +
+  facet_grid(~ collection_point, scales = "free_x", space = "free_x",
+             labeller = labeller(collection_point = c(
+               "t1" = "6 days", 
+               "t2" = "14 days"))) +
+  scale_fill_manual(values = c("High" = "#FF8080", "Low" = "#00CED1")) + 
+  theme_bw(base_size = 20) +
   labs(
     title = "Seagrass relative growth rate",
     x = "Collection Point",
     y = "Relative growth rate (extension / sheath*duration)") +
   theme_minimal() +
-  theme(legend.position = "none") +# Remove legend since it's redundant
+  theme(
+    plot.title = element_text(size = 16, face = "bold", hjust = 0.5),
+    axis.title = element_text(size = 12, face = "bold"),
+    axis.text = element_text(size = 11),
+    legend.position = "none",
+    strip.text = element_text(size = 12, face = "bold"),
+    panel.spacing = unit(0.5, "lines"))
 plot(rgr_plot_b)
 
 
 ## Plot WITHOUT donor site (colored boxes)
 n_labels_b_no_donor <- growth3_b %>%
-  filter(site != "donor") %>%  # Exclude donor
+  filter(site != "Donor") %>%  # Exclude donor
   group_by(site, collection_point) %>%
   summarise(
     n = n(),
@@ -261,7 +277,7 @@ n_labels_b_no_donor <- growth3_b %>%
     y_pos = if_else(is.infinite(max_rgr), 0.05, max_rgr + 0.05))
 
 rgr_plot_b_no_donor <- growth3_b %>%
-  filter(site != "donor") %>%  # Exclude donor
+  filter(site != "Donor") %>%  # Exclude donor
   ggplot(aes(x = site, y = RGR, fill = site)) +
   geom_boxplot() +
   geom_point(
@@ -276,7 +292,7 @@ rgr_plot_b_no_donor <- growth3_b %>%
     size = 3,
     vjust = -0.5) +
   facet_wrap(~ collection_point) +
-  scale_fill_manual(values = c("high" = "#FF8080", "low" = "#00CED1")) +  
+  scale_fill_manual(values = c("High" = "#FF8080", "Low" = "#00CED1"))+
   labs(
     title = "Seagrass relative growth rate",
     x = "Collection Point",
@@ -313,19 +329,131 @@ ggplot(growth3_b, aes(sample = RGR)) +
 ##not perfect but maybe ok?
 
 
-## ANOVA
+#further stats using growth3_b (time 1 adn 2 qwith donot)
+mod1b <- lm(RGR ~ g_ng* site + collection_point, data = growth3_b)
+summary(mod1b)
 
+mod2b <- lm(RGR ~ site+ collection_point, data = growth3_b)
+summary(mod2b)
+
+mod2.5b <- lm(RGR ~ g_ng + collection_point, data = growth3_b)
+summary(mod2.5b)
+
+mod4b <- lm(RGR ~ collection_point, data = growth3_b)
+summary(mod4b)
+
+mod0b <- lm(RGR ~ 1, data = growth3_b)
+summary(mod0b)
+
+mod3b <- lm(RGR ~ g_ng + site, data = growth3_b)
+summary(mod3b)
+
+mod3.2b <- lm(RGR ~ g_ng * collection_point, data = growth3_b)
+summary(mod3.2b)
+
+mod10<- lmer(RGR ~ site + (1 | quadrat), data = growth3_b)
+summary(mod10)
+
+mod11<- lmer(RGR ~ g_ng* site + (1 | quadrat), data = growth3_b)
+summary(mod11)
+
+mod12<- lmer(RGR ~ g_ng + (1 | quadrat), data = growth3_b) #treatment fixed, quadrat random
+mod13<- lmer(RGR ~ g_ng + site + (1 | quadrat), data = growth3_b) #additive fixed effects with random intercept
+mod14<- lmer(RGR ~ g_ng * site + (1 | quadrat), data = growth3_b) # mixed version of your mod1b (note: mod11 uses lm with a random effects term, which won't work correctly — you'd need lmer here)
+mod15<- lmer(RGR ~ g_ng + collection_point + (1 | quadrat), data = growth3_b)
+mod16<- lmer(RGR ~ site + collection_point + (1 | quadrat), data = growth3_b)
+
+model.sel(mod1b, mod2b, mod2.5b, mod4b, mod3b, mod3.2b, mod0b, mod10, mod11, mod12, mod13, mod14, mod15, mod16)
+nobs(mod1b) 
+nobs(mod2b)
+nobs(mod2.5b)
+nobs(mod4b)
+nobs(mod3b)
+nobs(mod3.2b)
+nobs(mod0b)
+nobs(anova1)
+nobs(mod10)
+nobs(mod11)
+nobs(mod12)
+nobs(mod13)
+nobs(mod14)
+nobs(mod15)
+nobs(mod16)
+
+
+#best model (dosent have effect of treatment but top two have effect of site)mod10) only has site 
+summary(mod2b)
+emm <- emmeans(mod2b, ~ site)
+pairs(emm, adjust = "tukey")
+
+
+
+#for plot with only T1 and 2 show RGR and no donor
+growth_t12 <- growth3 %>%
+  filter(collection_point %in% c("t1", "t2")) %>%
+  filter(site != "Donor")
+
+#further stats using growth_t12 (time 1 adn 2 without donot)
+mod1bb <- lm(RGR ~ g_ng* site + collection_point, data = growth_t12)
+summary(mod1bb)
+
+mod2bb <- lm(RGR ~ site+ collection_point, data = growth_t12)
+summary(mod2bb)
+
+mod2.5bb <- lm(RGR ~ g_ng + collection_point, data = growth_t12)
+summary(mod2.5bb)
+
+mod4bb <- lm(RGR ~ collection_point, data = growth_t12)
+summary(mod4bb)
+
+mod0bb <- lm(RGR ~ 1, data = growth_t12)
+summary(mod0bb)
+
+mod3bb <- lm(RGR ~ g_ng + site, data = growth_t12)
+summary(mod3bb)
+
+mod3.2bb <- lm(RGR ~ g_ng * collection_point, data = growth_t12)
+summary(mod3.2bb)
+
+mod10b<- lmer(RGR ~ site + (1 | quadrat), data = growth_t12)
+summary(mod10b)
+
+mod11b<- lmer(RGR ~ g_ng* site + (1 | quadrat), data = growth_t12)
+summary(mod11b)
+
+mod12b<- lmer(RGR ~ g_ng + (1 | quadrat), data = growth_t12) #treatment fixed, quadrat random
+summary(mod12b)
+mod13b<- lmer(RGR ~ g_ng + site + (1 | quadrat), data = growth_t12) #additive fixed effects with random intercept
+mod14b<- lmer(RGR ~ g_ng * site + (1 | quadrat), data = growth_t12) # mixed version of your mod1b (note: mod11 uses lm with a random effects term, which won't work correctly — you'd need lmer here)
+mod15b<- lmer(RGR ~ g_ng + collection_point + (1 | quadrat), data = growth_t12)
+mod16b<- lmer(RGR ~ site + collection_point + (1 | quadrat), data = growth_t12)
+
+model.sel(mod1bb, mod2bb, mod2.5bb, mod4bb, mod3bb, mod3.2bb, mod0bb, mod10b, mod11b, mod12b, mod13b, mod14b, mod15b, mod16b)
+#best models (mod2bb) have site and cll_pt and (mod3bb) has g_ng and sie
+summary(mod2bb)
+summary(mod3bb)
+
+
+
+
+###################
 ## Testing effects of treatment, site, and collection_point on RGR
 anova1 <- aov(RGR ~ treatment * site * collection_point, 
-                   data = growth3)
+              data = growth_t12)
 summary(anova1)
+library(lme4)
+
 ### site and collection point sig
 
 ##Testing effects of site, and collection_point on RGR if ignore treatment
 anova1_b <- aov(RGR ~ site * collection_point, 
-              data = growth3_b)
+                data = growth3_b)
 summary(anova1_b)
 ###site sig
+
+anova1_nd <- aov(RGR ~ g_ng * site * collection_point, 
+                 data = growth_t12_nd)
+summary(anova1_nd)
 
 # Check assumptions
 par(mfrow = c(2, 2))
@@ -343,73 +471,9 @@ TukeyHSD(anova1, "site")
 
 ## Tukey's HSD (ANOVA post-hocs)
 TukeyHSD(anova1_b, "site")
+TukeyHSD(anova1_nd, "site")
 ##low and high and low and donor 
 
-#remove donor due to methods
-# Testing effects of treatment, site, and collection_point on RGR
-growth4 <- growth3 %>%
-  filter(site != "donor")
-
-growth4_b <- growth3_b %>%
-  filter(site != "donor")
-
-anova4 <- aov(RGR ~ treatment * site * collection_point, 
-              data = growth4)
-summary(anova4)
-
-anova4_b <- aov(RGR ~ site * collection_point, 
-              data = growth4_b)
-summary(anova4_b)
-
-#further stats using g3
-mod1b <- lm(RGR ~ treatment* site + collection_point, data = growth3)
-summary(mod1b)
-
-mod2b <- lm(RGR ~ site+ collection_point, data = growth3)
-summary(mod2b)
-
-mod2.5b <- lm(RGR ~ treatment + collection_point, data = growth3)
-summary(mod2.5b)
-
-mod4b <- lm(RGR ~ collection_point, data = growth3)
-summary(mod4b)
-
-mod0b <- lm(RGR ~ 1, data = growth3)
-summary(mod0b)
-
-mod3b <- lm(RGR ~ treatment + site, data = growth3)
-summary(mod3b)
-
-mod3.2b <- lm(RGR ~ treatment * collection_point, data = growth3)
-summary(mod3.2b)
-
-model.sel(mod1b, mod2b, mod2.5b, mod4b, mod3b, mod3.2b, mod0b, anova1)
-#best model dosent have effect of treatment but top two have effect of site
-
-#further stats for ignoring treatment data
-mod1c <- lm(RGR ~ site + collection_point, data = growth3_b)
-summary(mod1c)
-
-mod2c <- lm(RGR ~ site+ collection_point, data = growth3_b)
-summary(mod2c)
-
-mod2.5c <- lm(RGR ~ collection_point, data = growth3_b)
-summary(mod2.5c)
-
-mod4c <- lm(RGR ~ collection_point, data = growth3_b)
-summary(mod4c)
-
-mod0c <- lm(RGR ~ 1, data = growth3_b)
-summary(mod0c)
-
-mod3c <- lm(RGR ~ site, data = growth3_b)
-summary(mod3c)
-
-mod3.2c <- lm(RGR ~ collection_point, data = growth3_b)
-summary(mod3.2c)
-
-model.sel(mod1c, mod2c, mod2.5c, mod4c, mod0c, mod3c, mod3.2c, anova1_b)
-# best model jsut site second best only 1AIC away and has collection point
 
 
 #____________________extention
@@ -502,4 +566,3 @@ ggplot(rgr_summary, aes(x = treatment, y = count, fill = treatment)) +
     x = "Treatment",
     y = "Count of RGR == 0 or NA") +
   theme_minimal()
-

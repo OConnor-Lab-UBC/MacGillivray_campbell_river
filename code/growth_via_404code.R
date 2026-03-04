@@ -82,13 +82,13 @@ full_summary2 <- growth2 %>%
   arrange(site, collection_point)
 print(full_summary2)
 
-#for RGR this would only be at treatment locations and on T2, 2, and maybe 3 so lets filter out other sutff
+#for RGR this would only be at treatment locations and on T1 and 2  so lets filter out other sutff
 growth3<- growth2 %>%
   mutate(treatment = g_ng) %>%
   filter(!is.na(date_collected), !is.na(RGR),
          site %in% c("High", "Low", "Donor"),
          treatment %in% c("g", "ng"),
-         collection_point %in% c("t1", "t2", "t3"))
+         collection_point %in% c("t1", "t2"))
 head(growth3)
 
 #check nas
@@ -103,6 +103,7 @@ full_summary3 <- growth3 %>%
 print(full_summary3)
 #still no Nas good.
 
+write.csv(growth3, "cleaned_growth.csv", row.names = FALSE)
 
 # Making plots ------------------RGR# Making plots -------------------------------------------------------
 

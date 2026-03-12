@@ -1,0 +1,40 @@
+id,individual id
+bagid,bag shoot was collected in id
+quadrat,bundle number from collection 
+t0_num_blades,number of blades when planted
+g_ng,"galvanized (non-oxidizing) = g, non-galvinized(oxidizing) =ng"
+date_marked,date of pin prick for growth
+date_collected,date plant was collected
+duration_days,duration of days planted
+site,"site level treatment (low= low sulfide, high = high sulfide, donor = transplanted plants in natural meadow, natural = natural non-transplanted plants in natural meadow)"
+collection_point,"timepoint of collection (t0= 6days, t1= 14days, t3= 68days)"
+shoot_bag_weight,wieght of bag shoot was dried in(g)
+shoot_plus_bag_weight,wieght of bag shoot was dried in + shoot wieght (g)
+rhizome_bag_weight,wieght of bag rhizome was dried in (g)
+rhizome_plus_bag_weight,wieght of bag rhizome was dried in + rhizome wieght (g)
+rhizome_weight,weight of rhizome (g)
+shoot_weight,weight of shoot (g)
+length_measured,length measured at time of collection (cm)
+length_calculated,time measured using imageJ (cm)
+sheath_length,length of sheath at time of collection (cm)
+shoot_width,width of shoot (cm)
+blade_number_tx,numkber of blades at collection point
+rhizome_length,length of 5 interdoned of rhizome (cm)
+numnodes,number of nodes of rhizome (they should all be 5 as this is what we standardized too)
+lateral_shoots,number of lateral shoots
+gfc_weight,wieght of gfc clean and dry (g)
+gfc_weight_plus_sample,wieght of gfc with epiphytes (g) 
+epi_weight,wieght of epiphytes (g)
+total_liquid_ml,total liquid used to collect epiphytes (ml)
+ref_legth,refrence length= length from first internode to pinprick (cm)
+bX_full,blade X full length (cm)
+bX_new,leaf growth from refrence to pinprick on blade X (cm)
+bX_old,length of leaf from pinprick to tip (cm)
+baby_X,length of new baby leaf (no pinprick in center of sheath (cm))
+notes,any notes
+extention,total cm of new growth on shoot
+original_length_Remaining,total cm of old growth
+standardized_extension_to_sheath,sum of new growth (extention)/ sheath length 
+standardized_to_old,extention/ sum of old growth
+condition_index,"state the plant was in when colelcted: 0 = no plant 1= only sheath or small warangled leaf, 2= leafs and sheath but obviously cut and dark/ majority rotting, 3= sheath and leafs, majority dark but not cut, or only few cut leaves no clear sheath 4= sheath and leafs, mostly green but cut, 5= full sheaths and leafs, green not cut"
+cut_index,"1= yes, 0= no, 2 = no shoot or so far gone not measurable"

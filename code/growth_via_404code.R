@@ -20,6 +20,10 @@ library(ggpubr)
 
 library(rstatix)
 #install.packages("rstatix")
+library(MuMIn)
+library(knitr)
+#install.packages("kableExtra")
+library(kableExtra)
 
 #download data
 growth<- read_csv("raw_data/Tansplant_data.csv")
@@ -103,7 +107,7 @@ full_summary3 <- growth3 %>%
 print(full_summary3)
 #still no Nas good.
 
-write.csv(growth3, "cleaned_growth.csv", row.names = FALSE)
+#write.csv(growth3, "cleaned_growth.csv", row.names = FALSE)
 
 # Making plots ------------------RGR# Making plots -------------------------------------------------------
 
@@ -316,7 +320,7 @@ ggplot(growth3, aes(x = RGR)) +
   facet_wrap(~ site) +
   theme_minimal()
 
-# QQ plot by site
+## QQ plot by site
 ggplot(growth3, aes(sample = RGR)) +
   stat_qq() +
   stat_qq_line() +
@@ -330,7 +334,7 @@ ggplot(growth3_b, aes(sample = RGR)) +
 ##not perfect but maybe ok?
 
 
-#further stats using growth3_b (time 1 adn 2 qwith donot)
+#*STATS using growth3_b (time 1 adn 2 with donot)*
 mod1b <- lm(RGR ~ g_ng* site + collection_point, data = growth3_b)
 summary(mod1b)
 
@@ -364,30 +368,118 @@ mod14<- lmer(RGR ~ g_ng * site + (1 | quadrat), data = growth3_b) # mixed versio
 mod15<- lmer(RGR ~ g_ng + collection_point + (1 | quadrat), data = growth3_b)
 mod16<- lmer(RGR ~ site + collection_point + (1 | quadrat), data = growth3_b)
 
-model.sel(mod1b, mod2b, mod2.5b, mod4b, mod3b, mod3.2b, mod0b, mod10, mod11, mod12, mod13, mod14, mod15, mod16)
-nobs(mod1b) 
-nobs(mod2b)
-nobs(mod2.5b)
-nobs(mod4b)
-nobs(mod3b)
-nobs(mod3.2b)
-nobs(mod0b)
-nobs(anova1)
-nobs(mod10)
-nobs(mod11)
-nobs(mod12)
-nobs(mod13)
-nobs(mod14)
-nobs(mod15)
-nobs(mod16)
+sel<- model.sel(mod1b, mod2b, mod2.5b, mod4b, mod3b, mod3.2b, mod0b, mod10, mod11, mod12, mod13, mod14, mod15, mod16)
 
-
-#best model (dosent have effect of treatment but top two have effect of site)mod10) only has site 
+##best model (dosent have effect of treatment but top two have effect of site)mod10) only has site 
 summary(mod2b)
 emm <- emmeans(mod2b, ~ site)
 pairs(emm, adjust = "tukey")
 
+## Clean it up into a presentable table
+sel_table <- as.data.frame(sel) |>
+  tibble::rownames_to_column("Model") |>
+  select(Model, df, logLik, AICc, delta, weight) |>
+  mutate(
+    logLik = round(logLik, 2),
+    AICc   = round(AICc,   2),
+    delta  = round(delta,  2),
+    weight = round(weight, 3)) |>
+  rename(
+    "K"       = df,
+    "logLik"  = logLik,
+    "AICc"    = AICc,
+    "ΔAICc"   = delta,
+    "Weight"  = weight)
 
+# Extract and add formula column to table
+sel_table <- as.data.frame(sel) |>
+  tibble::rownames_to_column("Model") |>
+  mutate(Formula = case_when(
+    Model == "mod1b"   ~ "g_ng × site + collection_point",
+    Model == "mod2b"   ~ "site + collection_point",
+    Model == "mod2.5b" ~ "g_ng + collection_point",
+    Model == "mod3b"   ~ "g_ng + site",
+    Model == "mod3.2b" ~ "g_ng × collection_point",
+    Model == "mod4b"   ~ "collection_point",
+    Model == "mod0b"   ~ "1 (null)",
+    Model == "mod10"   ~ "site + (1|quadrat)",
+    Model == "mod11"   ~ "g_ng × site + (1|quadrat)",
+    Model == "mod12"   ~ "g_ng + (1|quadrat)",
+    Model == "mod13"   ~ "g_ng + site + (1|quadrat)",
+    Model == "mod14"   ~ "g_ng × site + (1|quadrat)",
+    Model == "mod15"   ~ "g_ng + collection_point + (1|quadrat)",
+    Model == "mod16"   ~ "site + collection_point + (1|quadrat)")) |>
+  select(Model, Formula, df, logLik, AICc, delta, weight) |>
+  mutate(across(c(logLik, AICc, delta, weight), \(x) round(x, 2))) |>
+  rename(K = df, ΔAICc = delta, Weight = weight)
+
+##make table
+kable(sel_table,
+      caption = "Model selection table (AICc)",
+      align   = c("l","l","c","r","r","r","r")) |>
+  kable_styling(full_width = FALSE, bootstrap_options = c("striped", "hover")) |>
+  row_spec(1, bold = TRUE, background = "#e8f4f8") |>
+  column_spec(2, italic = TRUE, color = "grey40")  # formula in grey italic
+
+library(broom)  # or just broom if mod15 is lm
+
+tidy(mod2b, conf.int = TRUE) |>
+  mutate(across(where(is.numeric), \(x) round(x, 3))) |>
+  select(term, estimate, std.error, statistic, p.value, conf.low, conf.high) |>
+  rename(
+    "Term"     = term,
+    "Estimate" = estimate,
+    "SE"       = std.error,
+    "t"        = statistic,
+    "p"        = p.value,
+    "95% CI lower" = conf.low,
+    "95% CI upper" = conf.high) |>
+  kable(caption = "Top model fixed effects (mod2b)", align = "lrrrrr") |>
+  kable_styling(full_width = FALSE, bootstrap_options = c("striped", "hover")) |>
+  row_spec(0, bold = TRUE)
+
+# ── Pairwise comparisons (Tukey) ──────────────────────────────
+emm <- emmeans(mod2b, ~ site)
+
+pairs(emm, adjust = "tukey") |>
+  as.data.frame() |>
+  mutate(across(where(is.numeric), \(x) round(x, 3))) |>
+  rename(
+    Contrast   = contrast,
+    Estimate   = estimate,
+    SE         = SE,
+    df         = df,
+    t          = t.ratio,
+    p          = p.value
+  ) |>
+  mutate(` ` = case_when(
+    p < 0.001 ~ "***",
+    p < 0.01  ~ "**",
+    p < 0.05  ~ "*",
+    p < 0.1   ~ ".",
+    TRUE      ~ ""
+  )) |>
+  kable(caption = "Pairwise comparisons: site (Tukey-adjusted)") |>
+  kable_styling(full_width = FALSE, bootstrap_options = c("striped", "hover")) |>
+  row_spec(0, bold = TRUE) |>
+  row_spec(which(as.data.frame(pairs(emm, adjust = "tukey"))$p.value < 0.05), 
+           bold = TRUE, color = "white", background = "#2e7d9e")  # highlight sig pairs
+
+
+tidy(mod3b, conf.int = TRUE) |>
+  mutate(across(where(is.numeric), \(x) round(x, 3))) |>
+  select(term, estimate, std.error, statistic, p.value, conf.low, conf.high) |>
+  rename(
+    "Term"     = term,
+    "Estimate" = estimate,
+    "SE"       = std.error,
+    "t"        = statistic,
+    "p"        = p.value,
+    "95% CI lower" = conf.low,
+    "95% CI upper" = conf.high) |>
+  kable(caption = "Second model (<2 AIC) model fixed effects (mod3b)", align = "lrrrrr") |>
+  kable_styling(full_width = FALSE, bootstrap_options = c("striped", "hover")) |>
+  row_spec(0, bold = TRUE)
 
 #for plot with only T1 and 2 show RGR and no donor
 growth_t12 <- growth3 %>%
